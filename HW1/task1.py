@@ -59,7 +59,7 @@ def part_e(lines, n):
 
 if __name__ == '__main__':
     """
-    Run command: spark-submit task1.py $ASNLIB/public_data/review.json (output) $ASNLIB/public_data/stopwords 2011 10 10 
+    Run command: spark-submit task1.py $ASNLIB/public_data/review.json output.txt $ASNLIB/public_data/stopwords 2011 10 10 
     sys.argv: 1 = input_file 2 = output_file, 3 = stopwords, 4 = y, 5 = m, 6 = n
     """
     sc = SparkContext(master="local[6]", appName="task1")
@@ -73,11 +73,10 @@ if __name__ == '__main__':
     answer['E'] = part_e(lines, n=int(sys.argv[6]))
 
     # Write answers to file
-    # TODO: Make sure single quotes are ok
     file = open(sys.argv[2], "w")
-    file.write(str(answer))
+    file.write(json.dumps(answer))
     file.close()
 
     print("Final answers:")
-    print(str(answer))
+    print(json.dumps(answer))
     exit()
