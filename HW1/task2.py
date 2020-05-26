@@ -1,11 +1,13 @@
-from statistics import mean
 from pyspark import SparkContext
-from collections import defaultdict
 import json
 import sys
 
 
 def no_spark():
+    """
+    No spark version
+    :return:
+    """
     review = dict()
     business = dict()
     # Read review and create list of dictionary
@@ -21,7 +23,7 @@ def no_spark():
                 review.update({review_line['business_id']: current_stars})
 
     # Compute average score for each business
-    review_avg = dict(map(lambda x: (x[0], mean(x[1])), review.items()))
+    review_avg = dict(map(lambda x: (x[0], sum(x[1]) / len(x[1])), review.items()))
 
     # Read business.json and split categories into list of categories, then make a new dictionary
     with open(sys.argv[2], encoding='utf-8') as bus_file:
@@ -48,8 +50,8 @@ def no_spark():
 
     # Final results
     n = int(sys.argv[5])
-    result_avg = list(map(lambda x: (x[0], mean(x[1])), result.items()))
-    result_avg = sorted(result_avg, key=lambda x: -x[1])
+    result_avg = list(map(lambda x: (x[0], sum(x[1]) / len(x[1])), result.items()))
+    result_avg = sorted(result_avg, key=lambda x: (-x[1], x[0]))
     answer = json.dumps({"result": sorted([[str(elem[0]), elem[1]] for elem in result_avg[0:n]])})
     print("No spark: " + answer)
     return answer
@@ -69,6 +71,10 @@ def spark_average(rdd):
 
 
 def use_spark():
+    """
+    Use spark version
+    :return:
+    """
     sc = SparkContext(master="local[6]", appName="task2")
     sc.setLogLevel("WARN")
     review_lines = sc.textFile(sys.argv[1])
@@ -81,16 +87,34 @@ def use_spark():
     business_cat = business_lines.filter(lambda s: json.loads(s)['categories'] is not None) \
         .map(lambda s: (json.loads(s)['business_id'], json.loads(s)['categories'].split(", ")))
 
-    a = review_avg.join(business_cat).map(lambda x: (x[1][1], x[1][0]))  # (key=cat list, value=score)
-    b = a.flatMap(lambda x: (x[0], x[1])).collect()
-    print()
+    cat_scores = review_avg.join(business_cat).map(lambda x: (x[1][1], x[1][0]))  # (key=cat list, value=score)
+    # Split the key value pairs according to the cat list
+    # Reference: https://stackoverflow.com/questions/55562636/spark-how-to-split-key-value-list-into-key-value-pairs
+    cat_scores = cat_scores.flatMap(lambda x: [(value, x[1]) for value in x[0]])  # (key=cat, value=score)
+    cat_scores = spark_average(cat_scores).collect()
+
+    cat_scores = sorted(cat_scores, key=lambda x: (-x[1], x[0]))
+    n = int(sys.argv[5])
+    answer = json.dumps({"result": [[str(elem[0]), elem[1]] for elem in cat_scores[0:n]]})
+    print("With spark: " + answer)
+    return answer
 
 
 if __name__ == '__main__':
     """
-    
+    Task 2
     """
     if sys.argv[4] == "no_spark":
-        no_spark()
+        answer = no_spark()
     else:
-        use_spark()
+        answer = use_spark()
+
+    # Write answers to file
+    file = open(sys.argv[3], "w")
+    file.write(answer)
+    file.close()
+
+    print("Final answers:")
+    print(answer)
+    exit()
+
