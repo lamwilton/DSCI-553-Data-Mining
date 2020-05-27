@@ -75,7 +75,7 @@ def use_spark():
     Use spark version
     :return:
     """
-    sc = SparkContext(master="local[6]", appName="task2")
+    sc = SparkContext(master="local[*]", appName="task2")
     sc.setLogLevel("WARN")
     review_lines = sc.textFile(sys.argv[1])
 

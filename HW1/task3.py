@@ -4,6 +4,6 @@ import json
 import sys
 
 if __name__ == '__main__':
-    sc = SparkContext(master="local[6]", appName="task3")
+    sc = SparkContext(master="local[*]", appName="task3")
     sc.setLogLevel("WARN")
     review_lines = sc.textFile(sys.argv[1])

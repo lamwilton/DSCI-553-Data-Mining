@@ -68,7 +68,7 @@ if __name__ == '__main__':
     Run command: spark-submit task1.py $ASNLIB/public_data/review.json output.txt $ASNLIB/public_data/stopwords 2011 10 10 
     sys.argv: 1 = input_file 2 = output_file, 3 = stopwords, 4 = y, 5 = m, 6 = n
     """
-    sc = SparkContext(master="local[6]", appName="task1")
+    sc = SparkContext(master="local[*]", appName="task1")
     sc.setLogLevel("WARN")
     lines = sc.textFile(sys.argv[1])
     answer = dict()
