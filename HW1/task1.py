@@ -50,6 +50,12 @@ def part_e(lines, n):
         .reduceByKey(lambda a, b: a + b)
     count_result = counts.collect()
 
+    # Remove the empty string entry for edge case
+    for i in range(len(count_result) - 1):
+        if count_result[i][0] == "":
+            del count_result[i]
+            break
+
     count_result = sorted(count_result, key=lambda x: -x[1])
     top_n = count_result[0:n]
     top_n_list = [str(elem[0]) for elem in top_n]  # Convert to list format from tuple
