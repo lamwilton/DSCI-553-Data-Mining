@@ -1,39 +1,42 @@
 from pyspark import SparkContext
 import json
 import sys
-
-
-def default(review_lines, n):
-    num_reviews = review_lines.map(lambda x: (json.loads(x)['business_id'], 1)) \
-        .reduceByKey(lambda x, y: x + y) \
-        .sortBy(lambda x: -x[1])
-    parts = num_reviews.getNumPartitions()
-    items = num_reviews.mapPartitions(lambda iter: [sum(1 for _ in iter)]).collect()
-    num_reviews = num_reviews.collect()
-    result = [[str(elem[0]), elem[1]] for elem in num_reviews[0:n]]
-    return result, parts, items
-
-
-def custom(review_lines, n, part):
-    num_reviews = review_lines.map(lambda x: (json.loads(x)['business_id'], 1)) \
-        .repartition(part) \
-        .reduceByKey(lambda x, y: x + y) \
-        .sortBy(lambda x: -x[1]).take(n)
-    parts = num_reviews.getNumPartitions()
-    items = num_reviews.mapPartitions(lambda iter: [sum(1 for _ in iter)]).collect()
-    num_reviews = num_reviews.collect()
-    result = [[str(elem[0]), elem[1]] for elem in num_reviews]
-    return result, parts, items
-
+import time
 
 if __name__ == '__main__':
+    time1 = time.time()
     sc = SparkContext(master="local[*]", appName="task3")
     sc.setLogLevel("ERROR")
-    review_lines = sc.textFile(sys.argv[1])
-    part = sys.argv[4]
-    review_lines = review_lines.repartition(part)
+    input_file = sys.argv[1]
+    output = sys.argv[2]
+    part_type = sys.argv[3]
+    part = int(sys.argv[4])
     n = int(sys.argv[5])
+
+    review_lines = sc.textFile(input_file)
+
+    review_lines2 = review_lines.map(lambda x: (json.loads(x)['business_id'], 1))
+
+    # After mapping, partition is lost because key is changed, so should partition again to increase speed
+    if part_type == "customized":
+        review_lines2 = review_lines2.repartition(part)
+
+    # Count and filter for more than n reviews
+    review_lines4 = review_lines2.reduceByKey(lambda x, y: x + y) \
+        .filter(lambda x: x[1] > n)
+
     answer = dict()
-    answer['result'], answer['n_partitions'], answer['n_items'] = default(review_lines, n, part)
-    print("Final answer:")
+    answer['n_partitions'] = review_lines2.getNumPartitions()
+    answer['n_items'] = review_lines2.mapPartitions(lambda iter: [sum(1 for _ in iter)]).collect()
+    num_reviews = review_lines4.collect()
+    answer['result'] = [[str(elem[0]), elem[1]] for elem in num_reviews]
+
+    # Write answers
+    file = open(output, "w")
+    file.write(json.dumps(answer))
+    file.close()
+
+    print("Final answers:")
     print(json.dumps(answer))
+    print(time.time() - time1)
+    exit()
