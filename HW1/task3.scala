@@ -1,14 +1,16 @@
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
 import org.json4s.JsonDSL._
 import java.io.{File, FileWriter}
-import scala.io.Source
+
+import org.apache.spark.rdd.RDD
 
 
 object task3 {
   def main(args: Array[String]): Unit = {
+    val t1 = System.nanoTime
+
     val ss = SparkSession.builder().appName("task3").config("spark.master", "local[*]").getOrCreate()
     val sc = ss.sparkContext
     sc.setLogLevel("ERROR")
@@ -18,12 +20,17 @@ object task3 {
     val part = args(3).toInt
     val n = args(4).toInt
 
-    val review_lines = sc.textFile(input_file)
-    var review_lines2 = review_lines.map((x: String) => (compact(parse(x) \ "business_id"), 1))
-
+    var review_lines = sc.textFile(input_file)
+    var review_lines2: RDD[(String, Int)] = ss.sparkContext.emptyRDD[(String, Int)]
     if (part_type == "customized") {
-      review_lines2 = review_lines2.repartition(part)
+      review_lines = review_lines.coalesce(part)
+      review_lines2 = review_lines.map((x: String) => (compact(parse(x) \ "business_id"), 1)).persist()
+
     }
+    else {
+      review_lines2 = review_lines.map((x: String) => (compact(parse(x) \ "business_id"), 1))
+    }
+
     // Count and filter for more than n reviews
     val review_lines4 = (review_lines2.reduceByKey((x, y) => x + y)
       .filter(x => x._2 >= n))
@@ -51,5 +58,9 @@ object task3 {
     val fw = new FileWriter(file)
     fw.write(compact(answer))
     fw.close()
+
+    println("Answer written to output")
+    val duration = (System.nanoTime - t1) / 1e9d
+    println("Time taken in s: " + duration)
   }
 }
