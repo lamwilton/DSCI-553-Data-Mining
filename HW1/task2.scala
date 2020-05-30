@@ -11,18 +11,43 @@ object task2 {
 
     val review_lines = Source.fromFile(review_file, enc="utf-8").getLines.toList
     val reviews = review_lines.map((x: String) => (convertstr(parse(x) \ "business_id"), compact(parse(x) \ "stars").toDouble))
-    val reviews2 = reviews.groupBy(_._1).mapValues(_.map { case (_, b) => b })
+    val reviews2 = reviews.groupBy(_._1).mapValues(_.map { case (_, b) => b })  // Group by key equiv
     val review_avg = reviews2.map(x => average_helper(x))
 
     val business_lines = Source.fromFile(business_file, enc="utf-8").getLines.toList
     val business_cat = (business_lines.filter(s => convertstr(parse(s) \ "categories") != "null")
       .map(s => (convertstr(parse(s) \ "business_id"), convertstr(parse(s) \ "categories").split(", "))))
-    val cat_scores = for {
-      (k, v1)   <- review_avg
-      (`k`, v2) <- business_cat
-    } yield (v1, v2)
-    return JArray(List())
+    val business_cat_map = business_cat.toMap
 
+    // Inner Joining both maps, output as Array[Array[String], Float]
+    val cat_scores = review_avg.collect { case (k, v) if business_cat_map.contains(k) => (business_cat_map(k), v) }
+    // Flatten the String Array of categories, output Array[(String, Float)]
+    var cat_scores1: Array[(String, Float)] = Array()
+    for (i<- cat_scores) {
+      for (j <- i._1) {
+        cat_scores1 :+= (j, i._2.toFloat)
+      }
+    }
+    val cat_scores2 = cat_scores1.groupBy(_._1).mapValues(_.map { case (_, b) => b })  // Group by key
+    // Average and sort
+    var cat_scores3 = cat_scores2.map(x => (x._1, (x._2.sum / x._2.length))).toList.sortBy((x: (String, Float)) => (-x._2, x._1))
+    cat_scores3 = cat_scores3.slice(0, n)
+
+    // Format results to Json4s format
+    var result: List[JArray] = List()
+    for (i <- cat_scores3) {
+      result :+= JArray(List(JString(i._1.replace("\"", "")), i._2))
+    }
+    val result1 = JArray(result)
+    return result1
+  }
+
+  def flatmapping2(in: (Array[String], Double)): Array[(String, Double)] = {
+    var out: Array[(String, Double)] = Array()
+    for (i <- in._1) {
+      out :+= (i, in._2)
+    }
+    return out
   }
 
   def average_helper(in: (String, List[Double])): (String, Double) = {
@@ -77,21 +102,30 @@ object task2 {
   }
 
   def main(args: Array[String]): Unit = {
+    val t1 = System.nanoTime
+
     val review_file = args(0)
     val business_file = args(1)
     val output = args(2)
     val if_spark = args(3)
     val n = args(4).toInt
-    //val result: JArray = no_spark(review_file, business_file, n)
 
-    val result: JArray = use_spark(review_file, business_file, n)
-
+    var result = JArray(List())
+    if (if_spark == "no_spark") {
+      result = no_spark(review_file, business_file, n)
+    }
+    else {
+      result = use_spark(review_file, business_file, n)
+    }
     val answer: JObject = ("result", result)
 
     val file = new File(output)
     val fw = new FileWriter(file)
     fw.write(compact(answer))
     fw.close()
+
     println("Answer written to output")
+    val duration = (System.nanoTime - t1) / 1e9d
+    println("Time taken in s: " + duration)
   }
 }
