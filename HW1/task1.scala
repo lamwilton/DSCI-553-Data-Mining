@@ -8,6 +8,14 @@ import scala.io.Source
 
 
 object task1 {
+  // Helper method of converting JString to String to remove leading/trailing quotes
+  def convertstr(in: JValue): String = {
+    var originalStr = compact(in)
+    if (originalStr.startsWith("\"")) originalStr = originalStr.substring(1, originalStr.length)
+    if (originalStr.endsWith("\"")) originalStr = originalStr.substring(0, originalStr.length - 1)
+    return originalStr
+  }
+
   def part_a(lines: RDD[String]): Long = {
     val total_reviews = lines.count()
     println("The total number of reviews is " + total_reviews.toString())
@@ -48,7 +56,7 @@ object task1 {
   def part_e(lines:RDD[String], n: Int, stopwords_file: String): JArray = {
     val stopwords = Source.fromFile(stopwords_file).getLines.toList
 
-    val reviews = (lines.map((s: String) => compact(parse(s) \ "text"))
+    val reviews = (lines.map((s: String) => convertstr(parse(s) \ "text"))
       .map((line: String) => line.filter(!"([,.!?:;])".contains(_)).toLowerCase()))
     // Remove stopwords by filter as opposed to python
 
@@ -79,7 +87,7 @@ object task1 {
     val n = args(5).toInt
 
     val lines = sc.textFile(args(0))
-    var answer: JObject = (("A", part_a(lines)) ~ ("B", part_b(lines, y))
+    val answer: JObject = (("A", part_a(lines)) ~ ("B", part_b(lines, y))
       ~ ("C", part_c(lines)) ~ ("D", part_d(lines, m))) ~ ("E", part_e(lines, n, stopwords_file))
     println("Final answer:" + compact(answer))
 
