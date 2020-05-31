@@ -23,7 +23,7 @@ if __name__ == '__main__':
         review_lines2 = review_lines2.partitionBy(part, lambda x: ord(x[0]))
 
     # Count and filter for more than n reviews
-    review_lines4 = review_lines2.reduce(lambda x, y: x + y) \
+    review_lines4 = review_lines2.reduceByKey(lambda x, y: x + y) \
         .filter(lambda x: x[1] > n)
 
     answer = dict()
