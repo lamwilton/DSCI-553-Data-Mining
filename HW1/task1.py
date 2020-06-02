@@ -44,17 +44,12 @@ def part_e(lines, n):
         .map(lambda line: line.translate({ord(i): None for i in '([,.!?:;])'}).lower())\
         .map(lambda line: " ".join([word for word in line.split() if word not in stopwords]))
 
-    # Regular spark Word count https://spark.apache.org/examples.html
+    # Regular spark Word count
     counts = reviews.flatMap(lambda line: line.split(" ")) \
-        .map(lambda word: (word, 1)) \
+        .map(lambda x: (x, 1)) \
+        .filter(lambda x: x[0] != "") \
         .reduceByKey(lambda a, b: a + b)
     count_result = counts.collect()
-
-    # Remove the empty string entry for edge case
-    for i in range(len(count_result) - 1):
-        if count_result[i][0] == "":
-            del count_result[i]
-            break
 
     count_result = sorted(count_result, key=lambda x: -x[1])
     top_n = count_result[0:n]

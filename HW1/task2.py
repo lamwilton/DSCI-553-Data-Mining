@@ -89,7 +89,6 @@ def use_spark():
 
     cat_scores = review_avg.join(business_cat).map(lambda x: (x[1][1], x[1][0]))  # (key=cat list, value=score)
     # Split the key value pairs according to the cat list
-    # Reference: https://stackoverflow.com/questions/55562636/spark-how-to-split-key-value-list-into-key-value-pairs
     cat_scores = cat_scores.flatMap(lambda x: [(value, x[1]) for value in x[0]])  # (key=cat, value=score)
     cat_scores = spark_average(cat_scores).collect()
 
