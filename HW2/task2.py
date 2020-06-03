@@ -90,14 +90,10 @@ def phase2counting(baskets):
 
 
 def countinghelper(a_basket):
-    subsets = set()
-    # Generate all combinations from the basket
-    for k in range(1, max_itemsets_size + 1):
-        subsets = subsets.union(set(map(frozenset, itertools.combinations(a_basket, k))))
-    #print(subsets)
-
-    # Intersect it with the candidate itemsets
-    intersection = subsets.intersection(itemsets)
+    intersection = []
+    for item in itemsets:
+        if item.issubset(a_basket):
+            intersection.append(item)
 
     # Output as keyvalue pair
     result = [(item, 1) for item in intersection]
