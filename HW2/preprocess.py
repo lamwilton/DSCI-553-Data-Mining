@@ -20,5 +20,5 @@ if __name__ == '__main__':
         file.write("user_id,business_id")
         file.write("\n")
         for line in result1:
-            file.write(str(line).strip("()"))
+            file.write(str(line).strip("()").replace("\'", "").replace(", ", ","))
             file.write("\n")
