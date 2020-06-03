@@ -20,33 +20,50 @@ def case_1(input_file):
 def a_priori(iterator):
     # Copy the subset of baskets so I can reloop it many many times. Iterator only allows traversing once!
     baskets = [i[1] for i in iterator]
+    l, c = [], []
+    l.append(set())  # L_0, C_0, C_1 does not exist
+    c.append(set())
+    c.append(set())
+
     cnt = Counter()
     # Count frequent singletons using python counter
     for sub_list in baskets:
         for item in sub_list:
             cnt[item] += 1
+
     # Filter out the infrequent elements (pruning)
-    l_1 = set([frozenset([item]) for item in cnt if cnt[item] >= support_part])
-    print("L1 number of elements: " + str(len(l_1)))
+    l.append(set([frozenset([item]) for item in cnt if cnt[item] >= support_part]))
+    print()
+    print("L1 number of elements: " + str(len(l[1])))
 
     # Following pseudocode of apriori, with k more than 1
     k = 2
-    c_2 = set([x.union(y) for x in l_1 for y in l_1 if x != y and len(x.union(y)) == k])
-    print("Candidate k item sets: " + str(c_2))
-    cnt = Counter()
-    for sub_list in baskets:
-        # Generate subsets of size k from each basket, then find their set intersection with candidate itemsets c_k
-        subsets = set(map(frozenset, itertools.combinations(sub_list, k)))
-        intersection = c_2.intersection(subsets)
-        # Counting as above
-        for item in intersection:
-            cnt[item] += 1
-    print("Length of counter: " + str(len(cnt)))
-    # Filter out the infrequent elements (pruning)
-    l_2 = set([item for item in cnt if cnt[item] >= support_part])
-    print("Length after pruning infrequent:" + str(len(l_2)))
+    while True:
+        print("k = " + str(k))
+        c.append(set([x.union(y) for x in l[k - 1] for y in l[k - 1] if x != y and len(x.union(y)) == k]))
+        print("Candidate k item sets: " + str(c[k]))
+        cnt = Counter()
+        for sub_list in baskets:
+            # Generate subsets of size k from each basket, then find their set intersection with candidate itemsets c_k
+            subsets = set(map(frozenset, itertools.combinations(sub_list, k)))
+            intersection = c[k].intersection(subsets)
+            # Counting as above
+            for item in intersection:
+                cnt[item] += 1
+        print("Length of counter: " + str(len(cnt)))
 
-    return l_2
+        # Filter out the infrequent elements (pruning)
+        l.append(set([item for item in cnt if cnt[item] >= support_part]))
+        print("Length after pruning infrequent: " + str(len(l[k])))
+        if len(l[k]) == 0:
+            break
+        k += 1
+
+    # Collect all frequent itemsets and union for all k's
+    result = set()
+    for i in range(1, k):
+        result = result.union(l[i])
+    return result
 
 
 if __name__ == '__main__':
