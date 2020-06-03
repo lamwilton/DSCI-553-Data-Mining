@@ -47,14 +47,14 @@ def a_priori(iterator):
 
     # Filter out the infrequent elements (pruning)
     l.append(set([frozenset([item]) for item in cnt if cnt[item] >= support_part]))
-    #print("L1 number of elements: " + str(len(l[1])))
+    print("L1 number of elements: " + str(len(l[1])))
 
     # Following pseudocode of apriori on Wikipedia, with k more than 1
     k = 2
     while True:
-        #print("k = " + str(k))
+        print("k = " + str(k))
         c.append(set([x.union(y) for x in l[k - 1] for y in l[k - 1] if x != y and len(x.union(y)) == k]))
-        #print("Number of Candidate k item sets: " + str(len(c[k])))
+        print("Number of Candidate k item sets: " + str(len(c[k])))
         cnt = Counter()
         for sub_list in baskets:
             # Generate subsets of size k from each basket, then find their set intersection with candidate itemsets c_k
@@ -63,11 +63,11 @@ def a_priori(iterator):
             # Counting as above
             for item in intersection:
                 cnt[item] += 1
-        #print("Length of counter: " + str(len(cnt)))
+        print("Length of counter: " + str(len(cnt)))
 
         # Filter out the infrequent elements (pruning)
         l.append(set([item for item in cnt if cnt[item] >= support_part]))
-        #print("Length after pruning infrequent: " + str(len(l[k])))
+        print("Length after pruning infrequent: " + str(len(l[k])))
         if len(l[k]) == 0:
             break
         k += 1
@@ -133,6 +133,7 @@ if __name__ == '__main__':
 
     # Phase 1 Map
     baskets = case_1(input_file)  # TASK2
+    baskets = baskets.partitionBy(2)
 
     num_part = baskets.getNumPartitions()
     support_part = support // num_part
