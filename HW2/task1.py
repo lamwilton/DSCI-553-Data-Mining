@@ -57,11 +57,9 @@ def a_priori(iterator):
         cnt = Counter()
         for sub_list in baskets:
             # Generate subsets of size k from each basket, then find their set intersection with candidate itemsets c_k
-            subsets = set(map(frozenset, itertools.combinations(sub_list, k)))
-            intersection = c[k].intersection(subsets)
-            # Counting as above
-            for item in intersection:
-                cnt[item] += 1
+            for item in c[k]:
+                if item.issubset(sub_list):
+                    cnt[item] += 1
         #print("Length of counter: " + str(len(cnt)))
 
         # Filter out the infrequent elements (pruning)
@@ -136,7 +134,7 @@ if __name__ == '__main__':
     else:
         baskets = case_2(input_file)
     num_part = baskets.getNumPartitions()
-    support_part = support // num_part
+    support_part = support / num_part
 
     aprioriresult = baskets.mapPartitions(a_priori)
 
