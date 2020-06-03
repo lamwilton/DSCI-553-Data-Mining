@@ -106,7 +106,7 @@ def format_output(input_list, maxsize):
     Format the result correctly
     :param input_list:
     :param maxsize: Max number of items (k) in itemsets
-    :return:
+    :return: result as list of strings sorted
     """
     result = [[] for _ in range(maxsize)]
     for item in input_list:
@@ -117,7 +117,6 @@ def format_output(input_list, maxsize):
     result[0] = result[0].replace("\',)", "\')").replace("\'), ", "\'),").strip("[]")
     for i in range(1, maxsize):
         result[i] = result[i].replace("\'), ", "\'),").strip("[]")
-
     return result
 
 
