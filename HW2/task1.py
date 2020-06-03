@@ -80,6 +80,27 @@ def a_priori(iterator):
     return final_result
 
 
+def phase2counting(baskets):
+    baskets1 = baskets.values()
+    baskets2 = baskets1.flatMap(countinghelper)
+    return baskets2
+
+
+def countinghelper(a_basket):
+    subsets = set()
+    # Generate all combinations from the basket
+    for k in range(1, len(a_basket) + 1):
+        subsets = subsets.union(set(map(frozenset, itertools.combinations(a_basket, k))))
+    #print(subsets)
+
+    # Intersect it with the candidate itemsets
+    intersection = subsets.intersection(itemsets)
+
+    # Output as keyvalue pair
+    result = [(item, 1) for item in intersection]
+    return result
+
+
 if __name__ == '__main__':
     time1 = time.time()
     sc = SparkContext(master="local[*]", appName="task1")
@@ -97,12 +118,23 @@ if __name__ == '__main__':
     num_part = baskets.getNumPartitions()
     support_part = support // num_part
 
-    baskets1 = baskets.mapPartitions(a_priori)
-    print(baskets1.glom().collect())
+    aprioriresult = baskets.mapPartitions(a_priori)
+    #print(baskets1.glom().collect())
 
     # Phase 1 Reduce: Just union the result from all partitions
-    itemsets = baskets1.groupByKey().keys().collect()
-    print(itemsets)
+    itemsets = aprioriresult.groupByKey().keys().collect()
+    #print(itemsets)
+
+    # Phase 2 Map
+    freq_itemsets = phase2counting(baskets)
+
+    # Phase 2 reduce
+    freq_itemsets1 = freq_itemsets.reduceByKey(lambda x, y: x + y)
+    freq_itemsets2 = freq_itemsets1.filter(lambda x: x[1] >= support)  # Prune nonfrequent
+    freq_itemsets3 = freq_itemsets2.keys().map(lambda x: tuple(sorted(x)))  # Get key only, sort and convert to tuple
+    result = freq_itemsets3.collect()
+    print(result)
+
     # Ending
     totaltime = time.time() - time1
     print("Duration : " + str(totaltime))
