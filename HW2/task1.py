@@ -89,7 +89,7 @@ def phase2counting(baskets):
 def countinghelper(a_basket):
     subsets = set()
     # Generate all combinations from the basket
-    for k in range(1, len(a_basket) + 1):
+    for k in range(1, max_itemsets_size + 1):
         subsets = subsets.union(set(map(frozenset, itertools.combinations(a_basket, k))))
     #print(subsets)
 
@@ -119,11 +119,14 @@ if __name__ == '__main__':
     support_part = support // num_part
 
     aprioriresult = baskets.mapPartitions(a_priori)
-    #print(baskets1.glom().collect())
 
     # Phase 1 Reduce: Just union the result from all partitions
-    itemsets = aprioriresult.groupByKey().keys().collect()
-    #print(itemsets)
+    itemsets = aprioriresult.groupByKey().keys()
+    max_itemsets_size = itemsets.map(lambda x: len(x)).max()  # Get max length of candidate itemset so no need to generate subsets more than this
+    itemsets_output = itemsets.map(lambda x: tuple(sorted(x))).collect()
+    itemsets = itemsets.collect()
+    print()
+    print("Candidates: " + str(itemsets_output))
 
     # Phase 2 Map
     freq_itemsets = phase2counting(baskets)
@@ -132,8 +135,9 @@ if __name__ == '__main__':
     freq_itemsets1 = freq_itemsets.reduceByKey(lambda x, y: x + y)
     freq_itemsets2 = freq_itemsets1.filter(lambda x: x[1] >= support)  # Prune nonfrequent
     freq_itemsets3 = freq_itemsets2.keys().map(lambda x: tuple(sorted(x)))  # Get key only, sort and convert to tuple
-    result = freq_itemsets3.collect()
-    print(result)
+    final_result = freq_itemsets3.collect()
+    print()
+    print("Frequent Itemsets: " + str(final_result))
 
     # Ending
     totaltime = time.time() - time1
