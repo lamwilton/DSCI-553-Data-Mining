@@ -46,6 +46,7 @@ def a_priori(iterator):
             cnt[item] += 1
 
     # Filter out the infrequent elements (pruning)
+    support_part = float(support) * len(baskets) / baskets_count
     l.append(set([frozenset([item]) for item in cnt if cnt[item] >= support_part]))
     print("L1 number of elements: " + str(len(l[1])))
 
@@ -133,15 +134,15 @@ if __name__ == '__main__':
 
     # Phase 1 Map
     baskets = case_1(input_file)  # TASK2
-    baskets = baskets.partitionBy(2)
+    baskets = baskets.partitionBy(6)
+    baskets_count = baskets.count()  # Total basket count
 
     num_part = baskets.getNumPartitions()
-    support_part = support / num_part
 
     aprioriresult = baskets.mapPartitions(a_priori)
 
     # Phase 1 Reduce: Just union the result from all partitions
-    itemsets = aprioriresult.groupByKey().keys()
+    itemsets = aprioriresult.groupByKey().keys().persist()
     max_itemsets_size = itemsets.map(lambda x: len(x)).max()  # Get max length of candidate itemset so no need to generate subsets more than this
     itemsets_output = itemsets.map(lambda x: tuple(sorted(x))).collect()
     itemsets = itemsets.collect()
