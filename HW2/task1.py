@@ -19,23 +19,34 @@ def case_1(input_file):
 
 def a_priori(iterator):
     # Copy the subset of baskets so I can reloop it many many times. Iterator only allows traversing once!
-    baskets = [i for i in iterator]
+    baskets = [i[1] for i in iterator]
     cnt = Counter()
     # Count frequent singletons using python counter
     for sub_list in baskets:
-        for item in sub_list[1]:
+        for item in sub_list:
             cnt[item] += 1
-    # Filter out the infrequent elements
+    # Filter out the infrequent elements (pruning)
     l_1 = set([frozenset([item]) for item in cnt if cnt[item] >= support_part])
-    # Following pseudocode of apriori
+    print("L1 number of elements: " + str(len(l_1)))
+
+    # Following pseudocode of apriori, with k more than 1
     k = 2
     c_2 = set([x.union(y) for x in l_1 for y in l_1 if x != y and len(x.union(y)) == k])
-    print(c_2)
+    print("Candidate k item sets: " + str(c_2))
     cnt = Counter()
     for sub_list in baskets:
-        print("33e")
+        # Generate subsets of size k from each basket, then find their set intersection with candidate itemsets c_k
+        subsets = set(map(frozenset, itertools.combinations(sub_list, k)))
+        intersection = c_2.intersection(subsets)
+        # Counting as above
+        for item in intersection:
+            cnt[item] += 1
+    print("Length of counter: " + str(len(cnt)))
+    # Filter out the infrequent elements (pruning)
+    l_2 = set([item for item in cnt if cnt[item] >= support_part])
+    print("Length after pruning infrequent:" + str(len(l_2)))
 
-    return []
+    return l_2
 
 
 if __name__ == '__main__':
@@ -51,5 +62,5 @@ if __name__ == '__main__':
     support_part = support // num_part
 
     baskets1 = baskets.mapPartitions(a_priori)
-    print(baskets1.collect())
+    print(baskets1.glom().collect())
 
