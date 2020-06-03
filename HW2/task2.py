@@ -8,12 +8,13 @@ import itertools
 def case_1(input_file):
     # Read csv, tokenize and remove header
     lines = sc.textFile(input_file) \
+        .filter(lambda line: len(line) != 0) \
         .map(lambda x: (x.split(",")[0], x.split(",")[1])) \
         .filter(lambda x: x[0] != "user_id")
     baskets = lines.groupByKey()
     # Convert value list to set
     baskets1 = baskets.map(lambda x: (x[0], set(x[1].data))) \
-        .filter(lambda x: len(x[1]) >= 70)  # TASK2
+        .filter(lambda x: len(x[1]) >= case_number)  # TASK2
     return baskets1
 
 
@@ -21,6 +22,7 @@ def case_2(input_file):
     # Read csv, tokenize and remove header
     # Must only be one partition for case 2 for small2.csv, or else will take forever
     lines = sc.textFile(input_file, minPartitions=1) \
+        .filter(lambda line: len(line) != 0) \
         .map(lambda x: (x.split(",")[1], x.split(",")[0])) \
         .filter(lambda x: x[0] != "business_id")
     baskets = lines.groupByKey()
@@ -45,7 +47,6 @@ def a_priori(iterator):
 
     # Filter out the infrequent elements (pruning)
     l.append(set([frozenset([item]) for item in cnt if cnt[item] >= support_part]))
-    print()
     #print("L1 number of elements: " + str(len(l[1])))
 
     # Following pseudocode of apriori on Wikipedia, with k more than 1
