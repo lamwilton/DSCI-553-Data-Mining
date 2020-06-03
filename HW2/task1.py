@@ -101,6 +101,26 @@ def countinghelper(a_basket):
     return result
 
 
+def format_output(input_list, maxsize):
+    """
+    Format the result correctly
+    :param input_list:
+    :param maxsize: Max number of items (k) in itemsets
+    :return:
+    """
+    result = [[] for _ in range(maxsize)]
+    for item in input_list:
+        result[len(item) - 1].append(item)
+    result = list(map(sorted, result))
+    result = list(map(str, result))
+
+    result[0] = result[0].replace("\',)", "\')").replace("\'), ", "\'),").strip("[]")
+    for i in range(1, maxsize):
+        result[i] = result[i].replace("\'), ", "\'),").strip("[]")
+
+    return result
+
+
 if __name__ == '__main__':
     time1 = time.time()
     sc = SparkContext(master="local[*]", appName="task1")
@@ -125,8 +145,7 @@ if __name__ == '__main__':
     max_itemsets_size = itemsets.map(lambda x: len(x)).max()  # Get max length of candidate itemset so no need to generate subsets more than this
     itemsets_output = itemsets.map(lambda x: tuple(sorted(x))).collect()
     itemsets = itemsets.collect()
-    print()
-    print("Candidates: " + str(itemsets_output))
+    #print("Candidates: " + str(itemsets_output))
 
     # Phase 2 Map
     freq_itemsets = phase2counting(baskets)
@@ -135,9 +154,27 @@ if __name__ == '__main__':
     freq_itemsets1 = freq_itemsets.reduceByKey(lambda x, y: x + y)
     freq_itemsets2 = freq_itemsets1.filter(lambda x: x[1] >= support)  # Prune nonfrequent
     freq_itemsets3 = freq_itemsets2.keys().map(lambda x: tuple(sorted(x)))  # Get key only, sort and convert to tuple
+    max_freq_itemsets = freq_itemsets3.map(lambda x: len(x)).max()
     final_result = freq_itemsets3.collect()
-    print()
-    print("Frequent Itemsets: " + str(final_result))
+    #print("Frequent Itemsets: " + str(final_result))
+
+    # Write results
+    final_candidates = format_output(itemsets_output, max_itemsets_size)
+    final_freq = format_output(final_result, max_freq_itemsets)
+
+    with open(output_file, "w") as file:
+        file.write("Candidates:")
+        file.write("\n")
+        for line in final_candidates:
+            file.write(line)
+            file.write("\n")
+            file.write("\n")
+        file.write("Frequent Itemsets:")
+        file.write("\n")
+        for line in final_freq:
+            file.write(line)
+            file.write("\n")
+            file.write("\n")
 
     # Ending
     totaltime = time.time() - time1
