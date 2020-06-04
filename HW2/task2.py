@@ -3,6 +3,7 @@ from pyspark import StorageLevel
 import sys
 import time
 from collections import Counter
+import itertools
 
 
 def case_1(input_file):
@@ -40,14 +41,18 @@ def a_priori(iterator):
     k = 2
     while True:
         print("k = " + str(k))
-        c = list(set([x.union(y) for x in l[k - 1] for y in l[k - 1] if x != y and len(x.union(y)) == k]))
+        c = set([x.union(y) for x in l[k - 1] for y in l[k - 1] if x != y and len(x.union(y)) == k])
         print("Number of Candidate k item sets: " + str(len(c)))
         cnt = Counter()
         xcount = 1
         for sub_list in baskets:
-            # TODO: Fix this bottle neck.
-            # Filter from the list of candidates, take if the item is in the subset of the particular basket
-            items = list(filter(lambda x: x.issubset(sub_list), c))
+            # For k=2, generate all the pairs from the basket (10,000), then check each pair against candidates c (3 mil)
+            # Otherwise, loop candidates c and check if each one is a subset of basket
+            if k == 2:
+                boo = list(map(frozenset, itertools.combinations(sub_list, k)))
+                items = list(filter(lambda x: x in c, boo))
+            else:
+                items = list(filter(lambda x: x.issubset(sub_list), c))
             for item in items:
                 cnt[item] += 1
             xcount += 1
