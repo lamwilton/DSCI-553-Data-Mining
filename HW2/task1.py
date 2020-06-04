@@ -57,10 +57,10 @@ def a_priori(iterator):
         #print("Number of Candidate k item sets: " + str(len(c[k])))
         cnt = Counter()
         for sub_list in baskets:
-            # Generate subsets of size k from each basket, then find their set intersection with candidate itemsets c_k
-            for item in c[k]:
-                if item.issubset(sub_list):
-                    cnt[item] += 1
+            # Filter from the list of candidates, take if the item is in the subset of the particular basket
+            items = filter(lambda x: x.issubset(sub_list), c[k])
+            for item in items:
+                cnt[item] += 1
         #print("Length of counter: " + str(len(cnt)))
 
         # Filter out the infrequent elements (pruning)

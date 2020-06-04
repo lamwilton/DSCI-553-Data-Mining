@@ -43,9 +43,11 @@ def a_priori(iterator):
         cnt = Counter()
         xcount = 1
         for sub_list in baskets:
-            for item in c:
-                if item.issubset(sub_list):
-                    cnt[item] += 1
+            # TODO: Fix this bottle neck. The counter is the bottleneck
+            # Filter from the list of candidates, take if the item is in the subset of the particular basket
+            items = list(filter(lambda x: x.issubset(sub_list), c))
+            for item in items:
+                cnt[item] += 1
             xcount += 1
             if xcount % 50 == 0:
                 print(xcount)
