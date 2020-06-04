@@ -56,9 +56,8 @@ def a_priori(iterator):
             for item in items:
                 cnt[item] += 1
             xcount += 1
-            if xcount % 50 == 0:
-                print(xcount)
-                print(time.time() - time1)
+            if xcount % 100 == 0:
+                print("Basket #: " + str(xcount) + " k: " + str(k) + " Time: " + str(time.time() - time1))
         print("Length of counter: " + str(len(cnt)))
 
         # Filter out the infrequent elements (pruning)
@@ -125,15 +124,15 @@ if __name__ == '__main__':
 
     # Phase 1 Map
     baskets = case_1(input_file)  # TASK2
-    baskets = baskets.partitionBy(4)
+    baskets = baskets.partitionBy(8).persist()
     baskets_count = baskets.count()  # Total basket count
 
     num_part = baskets.getNumPartitions()
 
-    aprioriresult = baskets.mapPartitions(a_priori).persist(StorageLevel.MEMORY_AND_DISK)  # Save Memory
+    aprioriresult = baskets.mapPartitions(a_priori)
 
     # Phase 1 Reduce: Just union the result from all partitions
-    itemsets = aprioriresult.groupByKey().keys().persist()
+    itemsets = aprioriresult.groupByKey().keys()
     max_itemsets_size = itemsets.map(lambda x: len(x)).max()  # Get max length of candidate itemset so no need to generate subsets more than this
     itemsets_output = itemsets.map(lambda x: tuple(sorted(x))).collect()
     itemsets = itemsets.collect()
