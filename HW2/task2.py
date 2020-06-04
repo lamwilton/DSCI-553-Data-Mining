@@ -2,7 +2,6 @@ from pyspark import SparkContext
 import sys
 import time
 from collections import Counter
-import itertools
 
 
 def case_1(input_file):
@@ -18,26 +17,11 @@ def case_1(input_file):
     return baskets1
 
 
-def case_2(input_file):
-    # Read csv, tokenize and remove header
-    # Must only be one partition for case 2 for small2.csv, or else will take forever
-    lines = sc.textFile(input_file, minPartitions=1) \
-        .filter(lambda line: len(line) != 0) \
-        .map(lambda x: (x.split(",")[1], x.split(",")[0])) \
-        .filter(lambda x: x[0] != "business_id")
-    baskets = lines.groupByKey()
-    # Convert value list to set
-    baskets1 = baskets.map(lambda x: (x[0], set(x[1].data)))
-    return baskets1
-
-
 def a_priori(iterator):
     # Copy the subset of baskets so I can reloop it many many times. Iterator only allows traversing once!
     baskets = [i[1] for i in iterator]
-    l, c = [], []
+    l = []
     l.append(set())  # L_0, C_0, C_1 does not exist
-    c.append(set())
-    c.append(set())
 
     cnt = Counter()
     # Count frequent singletons using python counter
@@ -54,16 +38,18 @@ def a_priori(iterator):
     k = 2
     while True:
         print("k = " + str(k))
-        c.append(set([x.union(y) for x in l[k - 1] for y in l[k - 1] if x != y and len(x.union(y)) == k]))
-        print("Number of Candidate k item sets: " + str(len(c[k])))
+        c = list(set([x.union(y) for x in l[k - 1] for y in l[k - 1] if x != y and len(x.union(y)) == k]))
+        print("Number of Candidate k item sets: " + str(len(c)))
         cnt = Counter()
         xcount = 1
         for sub_list in baskets:
-            for item in c[k]:
+            for item in c:
                 if item.issubset(sub_list):
                     cnt[item] += 1
             xcount += 1
-            print(xcount)
+            if xcount % 50 == 0:
+                print(xcount)
+                print(time.time() - time1)
         print("Length of counter: " + str(len(cnt)))
 
         # Filter out the infrequent elements (pruning)
@@ -130,7 +116,7 @@ if __name__ == '__main__':
 
     # Phase 1 Map
     baskets = case_1(input_file)  # TASK2
-    baskets = baskets.partitionBy(6)
+    baskets = baskets.partitionBy(4)
     baskets_count = baskets.count()  # Total basket count
 
     num_part = baskets.getNumPartitions()
@@ -142,7 +128,7 @@ if __name__ == '__main__':
     max_itemsets_size = itemsets.map(lambda x: len(x)).max()  # Get max length of candidate itemset so no need to generate subsets more than this
     itemsets_output = itemsets.map(lambda x: tuple(sorted(x))).collect()
     itemsets = itemsets.collect()
-    #print("Candidates: " + str(itemsets_output))
+    print("Candidates: " + str(itemsets_output))
 
     # Phase 2 Map
     freq_itemsets = phase2counting(baskets)
@@ -153,7 +139,7 @@ if __name__ == '__main__':
     freq_itemsets3 = freq_itemsets2.keys().map(lambda x: tuple(sorted(x)))  # Get key only, sort and convert to tuple
     max_freq_itemsets = freq_itemsets3.map(lambda x: len(x)).max()
     final_result = freq_itemsets3.collect()
-    #print("Frequent Itemsets: " + str(final_result))
+    print("Frequent Itemsets: " + str(final_result))
 
     # Write results
     final_candidates = format_output(itemsets_output, max_itemsets_size)
