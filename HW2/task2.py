@@ -1,4 +1,5 @@
 from pyspark import SparkContext
+from pyspark import StorageLevel
 import sys
 import time
 from collections import Counter
@@ -6,9 +7,10 @@ from collections import Counter
 
 def case_1(input_file):
     # Read csv, tokenize and remove header
+    # Remove the u in front of string
     lines = sc.textFile(input_file).distinct() \
         .filter(lambda line: len(line) != 0) \
-        .map(lambda x: (x.split(",")[0], x.split(",")[1])) \
+        .map(lambda x: (str(x.split(",")[0]), str(x.split(",")[1]))) \
         .filter(lambda x: x[0] != "user_id")
     baskets = lines.groupByKey()
     # Convert value list to set
@@ -123,7 +125,7 @@ if __name__ == '__main__':
 
     num_part = baskets.getNumPartitions()
 
-    aprioriresult = baskets.mapPartitions(a_priori)
+    aprioriresult = baskets.mapPartitions(a_priori).persist(StorageLevel.MEMORY_AND_DISK)  # Save Memory
 
     # Phase 1 Reduce: Just union the result from all partitions
     itemsets = aprioriresult.groupByKey().keys().persist()
@@ -142,6 +144,7 @@ if __name__ == '__main__':
     max_freq_itemsets = freq_itemsets3.map(lambda x: len(x)).max()
     final_result = freq_itemsets3.collect()
     print("Frequent Itemsets: " + str(final_result))
+
 
     # Write results
     final_candidates = format_output(itemsets_output, max_itemsets_size)
