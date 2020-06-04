@@ -6,14 +6,14 @@ from collections import Counter
 
 def case_1(input_file):
     # Read csv, tokenize and remove header
-    lines = sc.textFile(input_file) \
+    lines = sc.textFile(input_file).distinct() \
         .filter(lambda line: len(line) != 0) \
         .map(lambda x: (x.split(",")[0], x.split(",")[1])) \
         .filter(lambda x: x[0] != "user_id")
     baskets = lines.groupByKey()
     # Convert value list to set
     baskets1 = baskets.map(lambda x: (x[0], set(x[1].data))) \
-        .filter(lambda x: len(x[1]) >= case_number)  # TASK2
+        .filter(lambda x: len(x[1]) > case_number)  # TASK2
     return baskets1
 
 
@@ -43,7 +43,7 @@ def a_priori(iterator):
         cnt = Counter()
         xcount = 1
         for sub_list in baskets:
-            # TODO: Fix this bottle neck. The counter is the bottleneck
+            # TODO: Fix this bottle neck.
             # Filter from the list of candidates, take if the item is in the subset of the particular basket
             items = list(filter(lambda x: x.issubset(sub_list), c))
             for item in items:

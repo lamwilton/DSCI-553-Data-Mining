@@ -6,11 +6,13 @@ import sys
 if __name__ == '__main__':
     sc = SparkContext(master="local[*]", appName="task2")
     sc.setLogLevel("WARN")
-    business_lines = sc.textFile("business.json")
+    business_lines = sc.textFile("business.json") \
+        .filter(lambda line: len(line) != 0)
     business_list = business_lines.map(lambda s: (json.loads(s)['business_id'], json.loads(s)['state'])) \
         .filter(lambda x: x[1] == 'NV')
 
-    review_lines = sc.textFile("review.json")
+    review_lines = sc.textFile("review.json") \
+        .filter(lambda line: len(line) != 0)
     result = review_lines.map(lambda s: (json.loads(s)['business_id'], json.loads(s)['user_id']))
     result1 = result.join(business_list) \
         .map(lambda x: (x[0], x[1][0])) \
