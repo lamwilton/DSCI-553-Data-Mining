@@ -2,15 +2,20 @@ from pyspark import SparkContext
 import sys
 import time
 from collections import Counter
-import itertools
 
 
 def case_1(input_file):
-    # Read csv, tokenize and remove header
-    lines = sc.textFile(input_file) \
-        .filter(lambda line: len(line) != 0) \
-        .map(lambda x: (x.split(",")[0], x.split(",")[1])) \
-        .filter(lambda x: x[0] != "user_id")
+    """
+    Read csv, tokenize and remove header and empty lines
+    Remove the u in front of string by str()
+    :param input_file:
+    :return: baskets rdd
+    """
+    lines = sc.textFile(input_file)
+    header = lines.first()
+    lines = lines.filter(lambda line: len(line) != 0) \
+        .filter(lambda line: line != header) \
+        .map(lambda x: (str(x.split(",")[0]), str(x.split(",")[1])))
     baskets = lines.groupByKey()
     # Convert value list to set
     baskets1 = baskets.map(lambda x: (x[0], set(x[1].data)))
@@ -18,12 +23,18 @@ def case_1(input_file):
 
 
 def case_2(input_file):
-    # Read csv, tokenize and remove header
-    # Must only be one partition for case 2 for small2.csv, or else will take forever
-    lines = sc.textFile(input_file, minPartitions=1) \
-        .filter(lambda line: len(line) != 0) \
-        .map(lambda x: (x.split(",")[1], x.split(",")[0])) \
-        .filter(lambda x: x[0] != "business_id")
+    """
+    Read csv, tokenize and remove header and empty lines
+    Remove the u in front of string by str()
+    Must only be one partition for case 2 for small2.csv, or else will take forever
+    :param input_file:
+    :return: baskets rdd
+    """
+    lines = sc.textFile(input_file, minPartitions=1)
+    header = lines.first()
+    lines = lines.filter(lambda line: len(line) != 0) \
+        .filter(lambda line: line != header) \
+        .map(lambda x: (str(x.split(",")[1]), str(x.split(",")[0])))
     baskets = lines.groupByKey()
     # Convert value list to set
     baskets1 = baskets.map(lambda x: (x[0], set(x[1].data)))

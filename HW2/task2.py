@@ -6,16 +6,21 @@ import itertools
 
 
 def case_1(input_file):
-    # Read csv, tokenize and remove header
-    # Remove the u in front of string
-    lines = sc.textFile(input_file).distinct() \
-        .filter(lambda line: len(line) != 0) \
-        .map(lambda x: (str(x.split(",")[0]), str(x.split(",")[1]))) \
-        .filter(lambda x: x[0] != "user_id")
+    """
+    Read csv, tokenize and remove header and empty lines
+    Remove the u in front of string by str()
+    :param input_file:
+    :return: baskets rdd
+    """
+    lines = sc.textFile(input_file).distinct()
+    header = lines.first()
+    lines = lines.filter(lambda line: len(line) != 0) \
+        .filter(lambda line: line != header) \
+        .map(lambda x: (str(x.split(",")[0]), str(x.split(",")[1])))
     baskets = lines.groupByKey()
     # Convert value list to set
     baskets1 = baskets.map(lambda x: (x[0], set(x[1].data))) \
-        .filter(lambda x: len(x[1]) > case_number)  # TASK2
+        .filter(lambda x: len(x[1]) > case_number)  # TASK2 filter qualified users strictly more than k
     return baskets1
 
 
@@ -23,7 +28,7 @@ def a_priori(iterator):
     # Copy the subset of baskets so I can reloop it many many times. Iterator only allows traversing once!
     baskets = [i[1] for i in iterator]
     l = []
-    l.append(set())  # L_0, C_0, C_1 does not exist
+    l.append(set())  # L_0 does not exist
 
     cnt = defaultdict(int)
     # Count frequent singletons using python counter
@@ -147,7 +152,6 @@ if __name__ == '__main__':
     max_freq_itemsets = freq_itemsets3.map(lambda x: len(x)).max()
     final_result = freq_itemsets3.collect()
     print("Frequent Itemsets: " + str(final_result))
-
 
     # Write results
     final_candidates = format_output(itemsets_output, max_itemsets_size)
