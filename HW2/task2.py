@@ -29,6 +29,7 @@ def a_priori(iterator):
     baskets = [i[1] for i in iterator]
     l = []
     l.append(set())  # L_0 does not exist
+    TIME_LIMIT = 1900
 
     cnt = defaultdict(int)
     # Count frequent singletons using python counter
@@ -59,9 +60,18 @@ def a_priori(iterator):
                 items = list(filter(lambda x: x.issubset(sub_list), c))
             for item in items:
                 cnt[item] += 1
+            # Kill switch, Stop A Priori when time exceeds 1900 seconds
+            time_elapsed = time.time() - time1
+            if time_elapsed > TIME_LIMIT:
+                print("Time exceeds limit, breaking out")
+                break
             xcount += 1
             if xcount % 100 == 0:
                 print("Basket #: " + str(xcount) + " k: " + str(k) + " Time: " + str(time.time() - time1))
+        time_elapsed = time.time() - time1
+        if time_elapsed > TIME_LIMIT:
+            print("Time exceeds limit, breaking out")
+            break
         print("Length of counter: " + str(len(cnt)))
 
         # Filter out the infrequent elements (pruning)
@@ -140,7 +150,7 @@ if __name__ == '__main__':
     max_itemsets_size = itemsets.map(lambda x: len(x)).max()  # Get max length of candidate itemset so no need to generate subsets more than this
     itemsets_output = itemsets.map(lambda x: tuple(sorted(x))).collect()
     itemsets = itemsets.collect()
-    print("Candidates: " + str(itemsets_output))
+    #print("Candidates: " + str(itemsets_output))
 
     # Phase 2 Map
     freq_itemsets = phase2counting(baskets)
@@ -151,7 +161,7 @@ if __name__ == '__main__':
     freq_itemsets3 = freq_itemsets2.keys().map(lambda x: tuple(sorted(x)))  # Get key only, sort and convert to tuple
     max_freq_itemsets = freq_itemsets3.map(lambda x: len(x)).max()
     final_result = freq_itemsets3.collect()
-    print("Frequent Itemsets: " + str(final_result))
+    #print("Frequent Itemsets: " + str(final_result))
 
     # Write results
     final_candidates = format_output(itemsets_output, max_itemsets_size)
@@ -173,5 +183,5 @@ if __name__ == '__main__':
 
     # Ending
     totaltime = time.time() - time1
-    print("Duration : " + str(totaltime))
+    print("Duration: " + str(totaltime))
 
