@@ -184,5 +184,5 @@ if __name__ == '__main__':
 
     # Ending
     totaltime = time.time() - time1
-    print("Duration : " + str(totaltime))
+    print("Duration: " + str(totaltime))
 
