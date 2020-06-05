@@ -1,8 +1,7 @@
 from pyspark import SparkContext
-from pyspark import StorageLevel
 import sys
 import time
-from collections import Counter
+from collections import defaultdict
 import itertools
 
 
@@ -26,7 +25,7 @@ def a_priori(iterator):
     l = []
     l.append(set())  # L_0, C_0, C_1 does not exist
 
-    cnt = Counter()
+    cnt = defaultdict(int)
     # Count frequent singletons using python counter
     for sub_list in baskets:
         for item in sub_list:
@@ -43,7 +42,7 @@ def a_priori(iterator):
         print("k = " + str(k))
         c = set([x.union(y) for x in l[k - 1] for y in l[k - 1] if x != y and len(x.union(y)) == k])
         print("Number of Candidate k item sets: " + str(len(c)))
-        cnt = Counter()
+        cnt = defaultdict(int)
         xcount = 1
         for sub_list in baskets:
             # For k=2, generate all the pairs from the basket (10,000), then check each pair against candidates c (3 mil)
@@ -124,7 +123,7 @@ if __name__ == '__main__':
 
     # Phase 1 Map
     baskets = case_1(input_file)  # TASK2
-    baskets = baskets.partitionBy(8).persist()
+    baskets = baskets.partitionBy(6).persist()
     baskets_count = baskets.count()  # Total basket count
 
     num_part = baskets.getNumPartitions()
