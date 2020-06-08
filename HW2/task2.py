@@ -38,7 +38,10 @@ def a_priori(iterator):
             cnt[item] += 1
 
     # Filter out the infrequent elements (pruning)
-    support_part = float(support) * len(baskets) / baskets_count
+    if baskets_count == 0:
+        support_part = 1
+    else:
+        support_part = float(support) * len(baskets) / baskets_count
     l.append(set([frozenset([item]) for item in cnt if cnt[item] >= support_part]))
     print("L1 number of elements: " + str(len(l[1])))
 
