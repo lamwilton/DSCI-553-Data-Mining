@@ -5,46 +5,53 @@ import json
 from collections import defaultdict
 
 
-def initial_steps(input_file):
+def char_table(input_file):
     """
     Read file and generate charactierstic table
     :param input_file:
     :return:
     """
     def tablehelper(x):
-        result = []
-        for business in businesslist1.value:
-            if business in x[1]:
-                result.append(1)
-            else:
-                result.append(0)
-        return tuple((x[0], tuple(result)))
+        """
+        Start with zero vector. Change to 1 if that user rated that business in that position
+        :param x:
+        :return:
+        """
+        result = [0 for _ in range(len(businessinv1.value))]
+        for business in x[1]:
+            result[businessinv1.value[business]] = 1
+        return tuple(result)
 
+    # Parse file
     lines = sc.textFile(input_file).distinct().persist()
     lines1 = lines.filter(lambda line: len(line) != 0) \
         .map(lambda s: (json.loads(s)['user_id'], json.loads(s)['business_id'])) \
         .filter(lambda x: x[0] is not None and x[1] is not None and x[0] != "" and x[1] != "")
+
+    # Group by users
     users = lines1.groupByKey()
     users1 = users.map(lambda x: (x[0], set(x[1].data)))
+
+    # Get list of businesses
     businesses = lines.filter(lambda line: len(line) != 0) \
         .map(lambda s: json.loads(s)['business_id']) \
         .filter(lambda x: x is not None and x != "") \
         .distinct()
     businesslist = tuple(businesses.collect())
-    businesslist1 = sc.broadcast(businesslist)
 
     # Inverse index for businesses
     businessinv = defaultdict(int)
     for i in range(len(businesslist)):
         businessinv[businesslist[i]] = i
+    businessinv1 = sc.broadcast(businessinv)
 
-    userlist = users.keys().collect()
-
+    # Generate characteristic table. Columns = businesses, rows = users. Also removes user_ids
     table = users1.map(lambda x: tablehelper(x))
     table1 = table.collect()
+
     totaltime = time.time() - time1
-    print("Duration: " + str(totaltime))
-    print()
+    print("Duration table: " + str(totaltime))
+    return table1
 
 
 if __name__ == '__main__':
@@ -58,7 +65,7 @@ if __name__ == '__main__':
     sc.setLogLevel("ERROR")
     input_file = sys.argv[1]
     output_file = sys.argv[2]
-    initial_steps(input_file)
+    table = char_table(input_file)
 
 
     # Ending
