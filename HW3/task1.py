@@ -50,6 +50,7 @@ def char_table(input_file):
     table = users1.map(lambda x: tablehelper(x))
     table1 = table.collect()
 
+    businessinv1.destroy()
     totaltime = time.time() - time1
     print("Duration table: " + str(totaltime))
     return table1, num_business
@@ -73,6 +74,30 @@ def minhash(table, a, b, num_business):
     return result
 
 
+def signature(minhashes):
+    """
+    LSH
+    :param minhashes: Minhash of one hash function
+    :return:
+    """
+    result = set()
+    for i in range(len(minhashes)):
+        for j in range(i + 1, len(minhashes)):
+            if minhashes[i] == minhashes[j]:
+                result.add((i, j))
+    return result
+
+
+def jaccard(pair):
+    a = table1.value[pair[0]]
+    b = table1.value[pair[1]]
+    union = len(a.union(b))
+    if union == 0:
+        similarity = 0
+    else:
+        similarity = len(a.intersection(b)) / union
+    return tuple((pair[0], pair[1], similarity))
+
 if __name__ == '__main__':
     time1 = time.time()
     conf = SparkConf()
@@ -84,11 +109,33 @@ if __name__ == '__main__':
     sc.setLogLevel("ERROR")
     input_file = sys.argv[1]
     output_file = sys.argv[2]
+
+    # Read file and convert business id to numbers
     table, num_business = char_table(input_file)
 
-    print(minhash(table, a=1, b=1, num_business=num_business))
-    print(minhash(table, a=2, b=1, num_business=num_business))
+    # Doing the Minhashing
+    hash_ab = [[1, 1], [2, 2], [3, 3], [5, 4], [7, 5], [11, 6], [13, 7], [17, 8], [19, 9], [23, 10]]
+    result_minhash = []
+    for item in hash_ab:
+        result_minhash.append(minhash(table, a=item[0], b=item[1], num_business=num_business))
+
+    # Doing the LSH
+    minhashes = sc.parallelize(result_minhash)
+    boo = minhashes.map(signature).collect()
+    result_lsh = set()
+    for item in boo:
+        result_lsh = result_lsh.union(item)
+
+
+    totaltime = time.time() - time1
+    print("Duration LSH: " + str(totaltime))
+
+    # Jaccard
+    table1 = sc.broadcast(table)
+    lsh = sc.parallelize(result_lsh)
+    jaccard_result = lsh.map(jaccard).collect()
 
     # Ending
     totaltime = time.time() - time1
     print("Duration: " + str(totaltime))
+    sc.stop()
