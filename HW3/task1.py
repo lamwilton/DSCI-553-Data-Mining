@@ -48,27 +48,28 @@ def char_table(input_file):
     # Generate characteristic table. Columns = businesses, rows = users. Also removes user_ids
     table = users1.map(lambda x: tablehelper(x))
     table1 = table.collect()
-    users_count = len(table1)
 
     totaltime = time.time() - time1
     print("Duration table: " + str(totaltime))
     return table1
 
 
-def hash(a, b, m):
+def minhash(table, a, b):
     """
-    Generate permutation order using the Min hash function
-    :param a: a needs to be coprime with m
+    Minhash method
+    :param table:
+    :param a:
     :param b:
     :return:
     """
-    result = defaultdict(int)
-    for i in range(0, m):
-        result[(a * i + b) % m] = i
-    result1 = list(result)
-    for i in result.keys():
-        result1[i] = result.get(i)
-    return result1
+    m = len(table)
+    result = [(m + 10) for _ in range(len(table[0]))]
+    for row in range(len(table)):
+        hashvalue = (a * row + b) % m
+        for column in range(len(table[0])):
+            if table[row][column] == 1 and hashvalue < result[column]:
+                result[column] = hashvalue
+    return result
 
 
 if __name__ == '__main__':
@@ -84,6 +85,7 @@ if __name__ == '__main__':
     output_file = sys.argv[2]
     table = char_table(input_file)
 
+    print(minhash(table, a=1, b=1))
 
     # Ending
     totaltime = time.time() - time1
