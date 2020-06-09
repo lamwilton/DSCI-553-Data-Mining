@@ -9,7 +9,7 @@ def char_table(input_file):
     """
     Read file and convert business id to numbers
     :param input_file:
-    :return:
+    :return: characteristic table(rows = users, each row is set of businesses), list of businesses (from number to string)
     """
     def tablehelper(x):
         """
@@ -45,14 +45,14 @@ def char_table(input_file):
     businessinv1 = sc.broadcast(businessinv)
     num_business = len(businessinv)
 
-    # Generate characteristic table. Columns = businesses, rows = users
+    # Generate characteristic table (rows = users, each row is set of businesses)
     table = users1.map(lambda x: tablehelper(x))
     table1 = table.values().collect()  # Remove user ids
 
     businessinv1.destroy()
     totaltime = time.time() - time1
     print("Duration table: " + str(totaltime))
-    return table1, num_business
+    return table1, businesslist
 
 
 def minhash(table, a, b, num_business):
@@ -89,15 +89,31 @@ def signature(minhashes):
 
 
 def jaccard(pair):
-    a = table1.value[pair[0]]
-    b = table1.value[pair[1]]
+    # Find back the business ids
+    business_a = businesslist[pair[0]]
+    business_b = businesslist[pair[1]]
+
+    # Look up busi dict for the sets
+    a = busi_dict[business_a]
+    b = busi_dict[business_b]
     union = len(a.union(b))
     if union == 0:
         similarity = 0
     else:
         similarity = len(a.intersection(b)) / union
-        similarity = len(a.intersection(b))
     return tuple((pair[0], pair[1], similarity))
+
+
+def business_table():
+    # Generate business table for Jaccard (Rows = business)
+    busi_table = lines.filter(lambda line: len(line) != 0) \
+        .map(lambda s: (json.loads(s)['business_id'], json.loads(s)['user_id'])) \
+        .filter(lambda x: x[0] is not None and x[1] is not None and x[0] != "" and x[1] != "") \
+        .groupByKey() \
+        .map(lambda x: (x[0], set(x[1].data))) \
+        .collect()
+    busi_dict = dict(busi_table)
+    return busi_dict
 
 
 if __name__ == '__main__':
@@ -114,7 +130,8 @@ if __name__ == '__main__':
 
     # Read file and convert business id to numbers
     lines = sc.textFile(input_file).distinct().persist()
-    table, num_business = char_table(input_file)
+    table, businesslist = char_table(input_file)
+    num_business = len(businesslist)
 
     # Doing the Minhashing
     hash_ab = [[1, 1], [2, 2], [3, 3], [5, 4], [7, 5], [11, 6], [13, 7], [17, 8], [19, 9], [23, 10]]
@@ -130,9 +147,11 @@ if __name__ == '__main__':
     for item in boo:
         result_lsh = result_lsh.union(item)
 
-
     totaltime = time.time() - time1
     print("Duration LSH: " + str(totaltime))
+
+    busi_dict = business_table()
+
 
     # Ending
     totaltime = time.time() - time1
