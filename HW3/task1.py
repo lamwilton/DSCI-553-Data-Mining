@@ -2,6 +2,7 @@ from pyspark import SparkContext, SparkConf
 import sys
 import time
 import json
+from collections import defaultdict
 
 
 def initial_steps(input_file):
@@ -12,8 +13,8 @@ def initial_steps(input_file):
     """
     def tablehelper(x):
         result = []
-        for user in userlist1.value:
-            if user in x[1]:
+        for business in businesslist1.value:
+            if business in x[1]:
                 result.append(1)
             else:
                 result.append(0)
@@ -21,19 +22,28 @@ def initial_steps(input_file):
 
     lines = sc.textFile(input_file).distinct().persist()
     lines1 = lines.filter(lambda line: len(line) != 0) \
-        .map(lambda s: (json.loads(s)['business_id'], (json.loads(s)['user_id'], json.loads(s)['stars']))) \
+        .map(lambda s: (json.loads(s)['user_id'], json.loads(s)['business_id'])) \
         .filter(lambda x: x[0] is not None and x[1] is not None and x[0] != "" and x[1] != "")
-    businesses = lines1.groupByKey()
-    businesses1 = businesses.map(lambda x: (x[0], dict(x[1].data)))
-    users = lines.filter(lambda line: len(line) != 0) \
-        .map(lambda s: (json.loads(s)['user_id'])) \
-        .filter(lambda x: x[0] is not None and x[1] is not None and x[0] != "" and x[1] != "") \
+    users = lines1.groupByKey()
+    users1 = users.map(lambda x: (x[0], set(x[1].data)))
+    businesses = lines.filter(lambda line: len(line) != 0) \
+        .map(lambda s: json.loads(s)['business_id']) \
+        .filter(lambda x: x is not None and x != "") \
         .distinct()
-    userlist = tuple(users.collect())
-    userlist1 = sc.broadcast(userlist)
-    table = businesses1.map(lambda x: tablehelper(x))
-    table1 = table.collect()
+    businesslist = tuple(businesses.collect())
+    businesslist1 = sc.broadcast(businesslist)
 
+    # Inverse index for businesses
+    businessinv = defaultdict(int)
+    for i in range(len(businesslist)):
+        businessinv[businesslist[i]] = i
+
+    userlist = users.keys().collect()
+
+    table = users1.map(lambda x: tablehelper(x))
+    table1 = table.collect()
+    totaltime = time.time() - time1
+    print("Duration: " + str(totaltime))
     print()
 
 
