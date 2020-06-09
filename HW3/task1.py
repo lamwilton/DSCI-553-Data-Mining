@@ -20,10 +20,9 @@ def char_table(input_file):
         result = set()
         for business in x[1]:
             result.add(businessinv1.value[business])
-        return result
+        return tuple((x[0], result))
 
     # Parse file
-    lines = sc.textFile(input_file).distinct().persist()
     lines1 = lines.filter(lambda line: len(line) != 0) \
         .map(lambda s: (json.loads(s)['user_id'], json.loads(s)['business_id'])) \
         .filter(lambda x: x[0] is not None and x[1] is not None and x[0] != "" and x[1] != "")
@@ -46,9 +45,9 @@ def char_table(input_file):
     businessinv1 = sc.broadcast(businessinv)
     num_business = len(businessinv)
 
-    # Generate characteristic table. Columns = businesses, rows = users. Also removes user_ids
+    # Generate characteristic table. Columns = businesses, rows = users
     table = users1.map(lambda x: tablehelper(x))
-    table1 = table.collect()
+    table1 = table.values().collect()  # Remove user ids
 
     businessinv1.destroy()
     totaltime = time.time() - time1
@@ -77,13 +76,14 @@ def minhash(table, a, b, num_business):
 def signature(minhashes):
     """
     LSH
-    :param minhashes: Minhash of one hash function
+    :param minhashes: 2d list of minhashes
     :return:
     """
     result = set()
-    for i in range(len(minhashes)):
-        for j in range(i + 1, len(minhashes)):
-            if minhashes[i] == minhashes[j]:
+    num_business = len(minhashes[0])
+    for i in range(num_business):
+        for j in range(i + 1, num_business):
+            if minhashes[0][i] == minhashes[0][j] and minhashes[1][i] == minhashes[1][j]:
                 result.add((i, j))
     return result
 
@@ -96,7 +96,9 @@ def jaccard(pair):
         similarity = 0
     else:
         similarity = len(a.intersection(b)) / union
+        similarity = len(a.intersection(b))
     return tuple((pair[0], pair[1], similarity))
+
 
 if __name__ == '__main__':
     time1 = time.time()
@@ -111,6 +113,7 @@ if __name__ == '__main__':
     output_file = sys.argv[2]
 
     # Read file and convert business id to numbers
+    lines = sc.textFile(input_file).distinct().persist()
     table, num_business = char_table(input_file)
 
     # Doing the Minhashing
@@ -120,6 +123,7 @@ if __name__ == '__main__':
         result_minhash.append(minhash(table, a=item[0], b=item[1], num_business=num_business))
 
     # Doing the LSH
+    result_minhash = [result_minhash]
     minhashes = sc.parallelize(result_minhash)
     boo = minhashes.map(signature).collect()
     result_lsh = set()
@@ -129,11 +133,6 @@ if __name__ == '__main__':
 
     totaltime = time.time() - time1
     print("Duration LSH: " + str(totaltime))
-
-    # Jaccard
-    table1 = sc.broadcast(table)
-    lsh = sc.parallelize(result_lsh)
-    jaccard_result = lsh.map(jaccard).collect()
 
     # Ending
     totaltime = time.time() - time1
