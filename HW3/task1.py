@@ -89,6 +89,11 @@ def signature(minhashes):
 
 
 def jaccard(pair):
+    """
+    Find jaccard of a pair of business
+    :param pair: business num (int)
+    :return: tuple of business_id and their Jaccard similarity
+    """
     # Find back the business ids
     business_a = businesslist[pair[0]]
     business_b = businesslist[pair[1]]
@@ -101,7 +106,7 @@ def jaccard(pair):
         similarity = 0
     else:
         similarity = len(a.intersection(b)) / union
-    return tuple((pair[0], pair[1], similarity))
+    return tuple((business_a, business_b, similarity))
 
 
 def business_table():
@@ -140,6 +145,7 @@ if __name__ == '__main__':
         result_minhash.append(minhash(table, a=item[0], b=item[1], num_business=num_business))
 
     # Doing the LSH
+    # TODO: Optimize LSH
     result_minhash = [result_minhash]
     minhashes = sc.parallelize(result_minhash)
     boo = minhashes.map(signature).collect()
