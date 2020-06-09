@@ -7,20 +7,20 @@ from collections import defaultdict
 
 def char_table(input_file):
     """
-    Read file and generate charactierstic table
+    Read file and convert business id to numbers
     :param input_file:
     :return:
     """
     def tablehelper(x):
         """
-        Start with zero vector. Change to 1 if that user rated that business in that position
+        Converting business id to numbers
         :param x:
         :return:
         """
-        result = [0 for _ in range(len(businessinv1.value))]
+        result = set()
         for business in x[1]:
-            result[businessinv1.value[business]] = 1
-        return tuple(result)
+            result.add(businessinv1.value[business])
+        return result
 
     # Parse file
     lines = sc.textFile(input_file).distinct().persist()
@@ -44,6 +44,7 @@ def char_table(input_file):
     for i in range(len(businesslist)):
         businessinv[businesslist[i]] = i
     businessinv1 = sc.broadcast(businessinv)
+    num_business = len(businessinv)
 
     # Generate characteristic table. Columns = businesses, rows = users. Also removes user_ids
     table = users1.map(lambda x: tablehelper(x))
@@ -51,10 +52,10 @@ def char_table(input_file):
 
     totaltime = time.time() - time1
     print("Duration table: " + str(totaltime))
-    return table1
+    return table1, num_business
 
 
-def minhash(table, a, b):
+def minhash(table, a, b, num_business):
     """
     Minhash method
     :param table:
@@ -63,12 +64,12 @@ def minhash(table, a, b):
     :return:
     """
     m = len(table)
-    result = [(m + 10) for _ in range(len(table[0]))]
+    result = [(m + 10) for _ in range(num_business)]
     for row in range(len(table)):
         hashvalue = (a * row + b) % m
-        for column in range(len(table[0])):
-            if table[row][column] == 1 and hashvalue < result[column]:
-                result[column] = hashvalue
+        for business_id in table[row]:
+            if hashvalue < result[business_id]:
+                result[business_id] = hashvalue
     return result
 
 
@@ -83,9 +84,10 @@ if __name__ == '__main__':
     sc.setLogLevel("ERROR")
     input_file = sys.argv[1]
     output_file = sys.argv[2]
-    table = char_table(input_file)
+    table, num_business = char_table(input_file)
 
-    print(minhash(table, a=1, b=1))
+    print(minhash(table, a=1, b=1, num_business=num_business))
+    print(minhash(table, a=2, b=1, num_business=num_business))
 
     # Ending
     totaltime = time.time() - time1
