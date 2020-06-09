@@ -58,11 +58,12 @@ def char_table(input_file):
 def minhash(table, a, b, num_business):
     """
     Minhash method
-    :param table:
+    :param table: Characteristic table with row = users
     :param a:
     :param b:
-    :return:
+    :return: Minhash of one hash function
     """
+    table = table.value
     m = len(table)
     result = [(m + 10) for _ in range(num_business)]
     for row in range(len(table)):
@@ -75,15 +76,15 @@ def minhash(table, a, b, num_business):
 
 def signature(minhashes):
     """
-    LSH
+    LSH with band size of 4 rows
     :param minhashes: 2d list of minhashes
-    :return:
+    :return: Set of Candidate pairs
     """
     result = set()
     num_business = len(minhashes[0])
     for i in range(num_business):
         for j in range(i + 1, num_business):
-            if minhashes[0][i] == minhashes[0][j] and minhashes[1][i] == minhashes[1][j]:
+            if minhashes[0][i] == minhashes[0][j] and minhashes[1][i] == minhashes[1][j] and minhashes[2][i] == minhashes[2][j] and minhashes[3][i] == minhashes[3][j]:
                 result.add((i, j))
     return result
 
@@ -139,10 +140,11 @@ if __name__ == '__main__':
     num_business = len(businesslist)
 
     # Doing the Minhashing
+    table1 = sc.broadcast(table)
     hash_ab = [[1, 1], [2, 2], [3, 3], [5, 4], [7, 5], [11, 6], [13, 7], [17, 8], [19, 9], [23, 10]]
-    result_minhash = []
-    for item in hash_ab:
-        result_minhash.append(minhash(table, a=item[0], b=item[1], num_business=num_business))
+    hash_ab_rdd = sc.parallelize(hash_ab)
+    result_minhash = hash_ab_rdd.map(lambda x: minhash(table1, x[0], x[1], num_business)).collect()
+    table1.destroy()
 
     # Doing the LSH
     # TODO: Optimize LSH
@@ -152,12 +154,12 @@ if __name__ == '__main__':
     result_lsh = set()
     for item in boo:
         result_lsh = result_lsh.union(item)
-
     totaltime = time.time() - time1
     print("Duration LSH: " + str(totaltime))
 
     busi_dict = business_table()
 
+    final_result = list(map(jaccard, result_lsh))
 
     # Ending
     totaltime = time.time() - time1
