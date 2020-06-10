@@ -93,16 +93,17 @@ def hash_func_generate(num_func):
 
 def lsh_signature(minhashes):
     """
-    LSH with band size of 2 rows (r = 2)
+    LSH with band size of 1 rows (r = 1)
     :param minhashes: 2d list of minhashes
     :return: Set of Candidate pairs
+    eg {(241, 235), (3242 ,2352), ...}
     """
     # TODO: Use defaultdict to increase efficiency, now is O(n^2)
     result = set()
     num_business = len(minhashes[0])
     for i in range(num_business):
         for j in range(i + 1, num_business):
-            if minhashes[0][i] == minhashes[0][j] and minhashes[1][i] == minhashes[1][j]:
+            if minhashes[0][i] == minhashes[0][j]:
                 result.add((i, j))
     return result
 
@@ -110,8 +111,8 @@ def lsh_signature(minhashes):
 def business_table():
     """
     Generate business table for Jaccard (Rows = business)
-    eg [('businessid1', {'userid1', ...}), ...]
     :return: Dictionary of businesses
+    eg [('businessid1', {'userid1', ...}), ...]
     """
     busi_table = lines.filter(lambda line: len(line) != 0) \
         .map(lambda s: (json.loads(s)['business_id'], json.loads(s)['user_id'])) \
@@ -165,7 +166,7 @@ if __name__ == '__main__':
 
     # Doing the Minhashing
     table1 = sc.broadcast(table)
-    hash_ab = hash_func_generate(num_func=200)
+    hash_ab = hash_func_generate(num_func=40)
     hash_ab_rdd = sc.parallelize(hash_ab)
     result_minhash = hash_ab_rdd.map(lambda x: minhash(table1, x[0], x[1], num_business)).collect()
     table1.destroy()
@@ -174,7 +175,7 @@ if __name__ == '__main__':
 
     # Doing the LSH
     # TODO: Optimize LSH
-    R = 2   # Number of rows in a band
+    R = 1   # Number of rows in a band
     lsh_input = []
     for i in range(0, len(result_minhash), R):
         lsh_input.append(result_minhash[i:i+R])
