@@ -98,7 +98,6 @@ def lsh_signature(minhashes):
     :return: Set of Candidate pairs
     eg {(241, 235), (3242 ,2352), ...}
     """
-    # TODO: Use defaultdict to increase efficiency, now is O(n^2)
     result = set()
     num_business = len(minhashes[0])
     for i in range(num_business):
@@ -129,6 +128,7 @@ def jaccard(pair):
     Find jaccard of a pair of business
     :param pair: business num (int)
     :return: tuple of business_id and their Jaccard similarity
+    eg (businessid1, businessid2, 0.05)
     """
     # Find back the business ids
     business_a = businesslist[pair[0]]
@@ -145,9 +145,22 @@ def jaccard(pair):
     return tuple((business_a, business_b, similarity))
 
 
+def format_output(final_result):
+    """
+    Format output file
+    :param final_result: List of tuples
+    :return: List of dictionaries
+    eg [{'b1': businessid1, 'b2': businessid2, 'sim': 0.07693}, {'b1': businessid1, 'b2': businessid2, 'sim': 0.052632}, ...]
+    """
+    result = []
+    for item in final_result:
+        result.append({'b1': item[0], 'b2': item[1], 'sim': item[2]})
+    return result
+
+
 if __name__ == '__main__':
 
-    # Initializing
+    # ========================================== Initializing ==========================================
     time1 = time.time()
     conf = SparkConf()
     conf.set("spark.driver.memory", "4g")
@@ -159,12 +172,12 @@ if __name__ == '__main__':
     input_file = sys.argv[1]
     output_file = sys.argv[2]
 
-    # Read file and convert business id to numbers
+    # ============================ Read file and convert business id to numbers ==========================
     lines = sc.textFile(input_file).distinct().persist()
     table, businesslist = char_table()
     num_business = len(businesslist)
 
-    # Doing the Minhashing
+    # ===================================== Doing the Minhashing =========================================
     table1 = sc.broadcast(table)
     hash_ab = hash_func_generate(num_func=40)
     hash_ab_rdd = sc.parallelize(hash_ab)
@@ -173,8 +186,7 @@ if __name__ == '__main__':
     totaltime = time.time() - time1
     print("Duration minhash: " + str(totaltime))
 
-    # Doing the LSH
-    # TODO: Optimize LSH
+    # =========================================== Doing the LSH ===========================================
     R = 1   # Number of rows in a band
     lsh_input = []
     for i in range(0, len(result_minhash), R):
@@ -187,15 +199,25 @@ if __name__ == '__main__':
     totaltime = time.time() - time1
     print("Duration LSH: " + str(totaltime))
 
-    # Making business table (inverse char table, each row = business)
+    # ================ Making business table (inverse char table, each row = business) =====================
     busi_dict = business_table()
 
-    # Jaccard and final results
-    final_result = list(map(jaccard, result_lsh))
-    hits = list(filter(lambda x: x[2] >= 0.05, final_result))
-    print("All positives: " + str(len(final_result)) + " True positives (Need 47548): " + str(len(hits)) + " Accuracy: " + str(len(hits) / (len(final_result) + 0.001)))
+    # ======================================= Jaccard and final results ====================================
+    # eg [(businessid1, businessid2, 0.05263), (businessid4, businessid5, 0.07609), ...]
+    result_lsh_rdd = sc.parallelize(list(result_lsh))
+    final_result = result_lsh_rdd.map(lambda x: jaccard(x)) \
+        .filter(lambda x: x[2] >= 0.05) \
+        .collect()
+    print(" True positives (Need 47548): " + str(len(final_result)))
 
-    # Ending
+    # ======================================= Write results =======================================
+    final_result_write = format_output(final_result)
+    with open(output_file, "w") as file:
+        for line in final_result_write:
+            file.write(json.dumps(line))
+            file.write("\n")
+
+    # ========================================== Ending ==========================================
     totaltime = time.time() - time1
     print("Duration: " + str(totaltime))
     sc.stop()
