@@ -5,6 +5,7 @@ import json
 from collections import defaultdict
 import math
 import operator
+import itertools
 
 
 def reading_file():
@@ -101,7 +102,6 @@ if __name__ == '__main__':
     print("Duration Read and Count: " + str(totaltime))
 
     # ============================ TFIDF ==========================
-    # TODO: Compute TFIDF
     wordcount_rdd = sc.parallelize(wordcount)
     tf = wordcount_rdd.mapValues(lambda x: tfhelper(x))
     idf = idf_function(wordcount_rdd, len(wordcount))
@@ -109,9 +109,16 @@ if __name__ == '__main__':
     # Multiply tf by idf according to IDF dict
     # eg ('WEeMwRLhgCyO1b4kikVcuQ', {'mushrooms': 0.1336377936411145, 'opinion': 0.06398903922325573, 'make': 0.033220508168680656, ...})
     tfidf = tf.mapValues(lambda dictx: {key: (value * idf.get(key)) for key, value in dictx.items()})
-
     totaltime = time.time() - time1
     print("Duration TFIDF: " + str(totaltime))
+
+    # ========================== Business Profile ==========================
+    # Sort dictionary by TFIDF values and select top 200 words
+    # eg ('WEeMwRLhgCyO1b4kikVcuQ', {'ketchup': 3.0334656552186, 'burger': 2.9076654617412436, 'fries': 0.9789390946357696, ...})
+    busi_profile = tfidf.mapValues(lambda d: dict(sorted(d.items(), key=lambda d: d[1], reverse=True)[0:200])).collect()
+
+    totaltime = time.time() - time1
+    print("Duration business profile: " + str(totaltime))
 
     # ========================================== Ending ==========================================
     totaltime = time.time() - time1
