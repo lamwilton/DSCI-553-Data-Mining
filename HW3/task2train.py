@@ -4,6 +4,7 @@ import time
 import json
 from collections import defaultdict
 import random
+import operator
 
 
 def reading_file():
@@ -44,6 +45,19 @@ def reading_file():
     return counts1
 
 
+def tfhelper(words: dict):
+    """
+    Calculate TF of a word dictionary
+    :param words:
+    :return: result dictionary
+    eg {'mushrooms': 0.041666666666666664, 'opinion': 0.023809523809523808, 'make': 0.06547619047619048, ...}
+    """
+    # Find max value of the words dictionary
+    max_value = max(words.items(), key=operator.itemgetter(1))[1]
+    result = {word: value / max_value for word, value in words.items()}
+    return result
+
+
 if __name__ == '__main__':
 
     # ========================================== Initializing ==========================================
@@ -65,6 +79,8 @@ if __name__ == '__main__':
     wordcount = reading_file()
 
     # TODO: Compute TFIDF
+    wordcount_rdd = sc.parallelize(wordcount)
+    tf = wordcount_rdd.mapValues(lambda x: tfhelper(x))
 
     # ========================================== Ending ==========================================
     totaltime = time.time() - time1
