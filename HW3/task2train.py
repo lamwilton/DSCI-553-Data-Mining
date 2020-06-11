@@ -3,7 +3,7 @@ import sys
 import time
 import json
 from collections import defaultdict
-import random
+import math
 import operator
 
 
@@ -58,6 +58,26 @@ def tfhelper(words: dict):
     return result
 
 
+def idf_function(wordcount_rdd, N):
+    """
+    Calculate IDF for each word
+    :param wordcount_rdd:
+    :param N: Number of businesses/ documents
+    :return: IDF dictionary
+    eg {'everything': 0.7432705137137011, 'let': 1.2765910361657753, 'sauces': 3.11411633920867, 'bobby': 6.982500694663834, 'tasteless': 4.767761845870821, ...}
+    """
+    # Emit (word, 1) if the word appears in a document/business from the dictionary
+    idf = wordcount_rdd.values() \
+        .flatMap(lambda dictx: dictx.keys()) \
+        .map(lambda x: (x, 1))
+    # Regular word count
+    idf1 = idf.reduceByKey(lambda a, b: a + b)
+    # Apply IDF equation
+    idf2 = idf1.mapValues(lambda x: math.log2(N / x)).collect()
+    result = dict(idf2)
+    return result
+
+
 if __name__ == '__main__':
 
     # ========================================== Initializing ==========================================
@@ -77,10 +97,21 @@ if __name__ == '__main__':
     # ============================ Read file and Word Count ==========================
     lines = sc.textFile(input_file).distinct()
     wordcount = reading_file()
+    totaltime = time.time() - time1
+    print("Duration Read and Count: " + str(totaltime))
 
+    # ============================ TFIDF ==========================
     # TODO: Compute TFIDF
     wordcount_rdd = sc.parallelize(wordcount)
     tf = wordcount_rdd.mapValues(lambda x: tfhelper(x))
+    idf = idf_function(wordcount_rdd, len(wordcount))
+
+    # Multiply tf by idf according to IDF dict
+    # eg ('WEeMwRLhgCyO1b4kikVcuQ', {'mushrooms': 0.1336377936411145, 'opinion': 0.06398903922325573, 'make': 0.033220508168680656, ...})
+    tfidf = tf.mapValues(lambda dictx: {key: (value * idf.get(key)) for key, value in dictx.items()})
+
+    totaltime = time.time() - time1
+    print("Duration TFIDF: " + str(totaltime))
 
     # ========================================== Ending ==========================================
     totaltime = time.time() - time1
