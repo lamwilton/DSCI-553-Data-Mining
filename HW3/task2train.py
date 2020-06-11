@@ -8,9 +8,9 @@ import random
 
 def reading_file():
     """
-    Read file and do word counting
+    Read file and do word counting per business
     :return: Word counts
-    eg ('UO--KDTb5NEwp3SCdX5CMQ', [('nice', 8), ('good', 7), ...])
+    eg ('WEeMwRLhgCyO1b4kikVcuQ', {'mushrooms': 7, 'opinion': 4, ...})
     """
     # Read stopwords file
     with open(stopwords_file) as file:
@@ -35,11 +35,11 @@ def reading_file():
         .reduceByKey(lambda a, b: a + b) \
         .filter(lambda x: x[1] > 1)
 
-    # Change key/value, group by key
-    # eg ('UO--KDTb5NEwp3SCdX5CMQ', [('nice', 8), ('good', 7), ...])
+    # Change key/value, group by key, convert to dict
+    # eg ('WEeMwRLhgCyO1b4kikVcuQ', {'mushrooms': 7, 'opinion': 4, ...})
     counts1 = counts.map(lambda x: (x[0][0], (x[0][1], x[1])))\
         .groupByKey()\
-        .map(lambda x: (x[0], x[1].data))\
+        .map(lambda x: (x[0], dict(x[1].data)))\
         .collect()
     return counts1
 
@@ -60,9 +60,11 @@ if __name__ == '__main__':
     output_file = sys.argv[2]
     stopwords_file = sys.argv[3]
 
-    # ============================ Read file ==========================
+    # ============================ Read file and Word Count ==========================
     lines = sc.textFile(input_file).distinct()
-    ooo = reading_file()
+    wordcount = reading_file()
+
+    # TODO: Compute TFIDF
 
     # ========================================== Ending ==========================================
     totaltime = time.time() - time1
