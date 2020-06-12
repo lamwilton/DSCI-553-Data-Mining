@@ -96,7 +96,7 @@ if __name__ == '__main__':
     stopwords_file = sys.argv[3]
 
     # ============================ Read file and Word Count ==========================
-    lines = sc.textFile(input_file).distinct()
+    lines = sc.textFile(input_file).distinct().persist()
     wordcount = reading_file()
     totaltime = time.time() - time1
     print("Duration Read and Count: " + str(totaltime))
@@ -119,6 +119,42 @@ if __name__ == '__main__':
 
     totaltime = time.time() - time1
     print("Duration business profile: " + str(totaltime))
+
+    # ========================== User Profile ==========================
+    # eg ('u_wqt9RshdZsoj8ikLqoEQ', {'scary', "they're", 'reflect', 'imitation', 'slushee', ... for 8710 words})
+
+    # Extract keywords only
+    busi_profile_rdd = sc.parallelize(busi_profile)
+    busi_profile_rdd1 = busi_profile_rdd.mapValues(lambda d: set(d.keys())).persist()
+    busi_profile_noscore = busi_profile_rdd1.collect()
+
+    # Get business/user pairs
+    user_profile_rdd = lines.filter(lambda line: len(line) != 0) \
+        .map(lambda s: (json.loads(s)['business_id'], json.loads(s)['user_id'])) \
+        .filter(lambda x: x[0] is not None and x[1] is not None and x[0] != "" and x[1] != "")
+    lines.unpersist()
+
+    # Joining, throw away keys, and union the keywords by reduce
+    user_profile = user_profile_rdd.join(busi_profile_rdd1) \
+        .values() \
+        .reduceByKey(lambda a, b: a.union(b)) \
+        .collect()
+    busi_profile_rdd1.unpersist()
+
+    totaltime = time.time() - time1
+    print("Duration user profile: " + str(totaltime))
+
+    # ========================== Writing results ==========================
+    with open(output_file, "w") as file:
+        for item in busi_profile_noscore:
+            entry = {"business_id": item[0], "words": list(item[1])}
+            file.write(json.dumps(entry))
+            file.write("\n")
+
+        for item in user_profile:
+            entry = {"user_id": item[0], "words": list(item[1])}
+            file.write(json.dumps(entry))
+            file.write("\n")
 
     # ========================================== Ending ==========================================
     totaltime = time.time() - time1
