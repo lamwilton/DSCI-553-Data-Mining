@@ -2,10 +2,8 @@ from pyspark import SparkContext, SparkConf
 import sys
 import time
 import json
-from collections import defaultdict
 import math
 import operator
-import itertools
 
 
 def reading_file():
