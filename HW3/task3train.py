@@ -4,7 +4,6 @@ import time
 import json
 import math
 from collections import defaultdict
-import operator
 
 
 def initialize():
@@ -85,7 +84,7 @@ def item_based():
     return candidate_pairs, business_reviews_tuple
 
 
-def pearson_helper(data, a, b, avg_a, avg_b):
+def pearson_helper(data, a, b):
     """
     Pearson for item based
     :param data: Tuple of business reviews or user reviews
@@ -99,8 +98,12 @@ def pearson_helper(data, a, b, avg_a, avg_b):
     corate_set = set(data[a].keys()).intersection(set(data[b].keys()))
 
     # Get the normalized vectors of a and b
-    vec_a = [data[a].get(item) - avg_a for item in corate_set]
-    vec_b = [data[b].get(item) - avg_b for item in corate_set]
+    vec_a_pre = [data[a].get(item) for item in corate_set]
+    vec_b_pre = [data[b].get(item) for item in corate_set]
+    avg_a = sum(vec_a_pre) / len(vec_a_pre)
+    avg_b = sum(vec_b_pre) / len(vec_b_pre)
+    vec_a = list(map(lambda x: x - avg_a, vec_a_pre))
+    vec_b = list(map(lambda x: x - avg_b, vec_b_pre))
 
     numerator = sum([x * y for x, y in zip(vec_a, vec_b)])
     denominator = math.sqrt(sum([x ** 2 for x in vec_a])) * math.sqrt(sum([x ** 2 for x in vec_b]))
@@ -111,22 +114,17 @@ def pearson_helper(data, a, b, avg_a, avg_b):
     return result
 
 
-def reading_average(business_avg_file, user_avg_file):
+def format_output(final_result):
     """
-    Reading the averages of businesses and users
-    :param business_avg_file:
-    :param user_avg_file:
-    :return: business average and user average as dict
-    business_avg eg {5897: 3.675438596491228, 2547: 4.343283582089552, 763: 4.001680672268908, ...}
-    user_avg eg {3729: 3.5952380952380953, 14423: 4.555555555555555, 24308: 3.6818181818181817, ...}
+    Format output file
+    :param final_result: List of tuples
+    :return: List of dictionaries
+    eg [{'b1': businessid1, 'b2': businessid2, 'sim': 0.07693}, {'b1': businessid1, 'b2': businessid2, 'sim': 0.052632}, ...]
     """
-    with open(business_avg_file) as file:
-        business_avg_read = json.load(file)
-    with open(user_avg_file) as file:
-        user_avg_read = json.load(file)
-    business_avg = {businesses_dict[k]: v for k, v in business_avg_read.items()}
-    user_avg = {users_dict[k]: v for k, v in user_avg_read.items()}
-    return business_avg, user_avg
+    result = []
+    for item in final_result:
+        result.append({'b1': item[0], 'b2': item[1], 'sim': item[2]})
+    return result
 
 
 if __name__ == '__main__':
@@ -155,12 +153,22 @@ if __name__ == '__main__':
 
     # ============================ Item/business based ==========================
     candidate_pairs, business_reviews_tuple = item_based()
-    business_avg, user_avg = reading_average(business_avg_file, user_avg_file)
-    final_pairs = candidate_pairs.map(lambda x: (x[0], x[1], pearson_helper(data=business_reviews_tuple, a=x[0], b=x[1], avg_a=business_avg[x[0]], avg_b=business_avg[x[1]])))\
+    final_pairs_pre = candidate_pairs.map(lambda x: (x[0], x[1], pearson_helper(data=business_reviews_tuple, a=x[0], b=x[1])))\
         .filter(lambda x: x[2] > 0)
-    print("Number of pairs final: " + str(final_pairs.count()))
+
+    # Get the business ID back
+    final_result = final_pairs_pre.map(lambda x: (businesses_inv[x[0]], businesses_inv[x[1]], x[2])).collect()
+    print("Number of pairs final: " + str(len(final_result)))
+
     totaltime = time.time() - time1
     print("Duration Item Based: " + str(totaltime))
+
+    # ======================================= Write results =======================================
+    final_result_write = format_output(final_result)
+    with open(output_file, "w") as file:
+        for line in final_result_write:
+            file.write(json.dumps(line))
+            file.write("\n")
 
     # ========================================== Ending ==========================================
     totaltime = time.time() - time1
