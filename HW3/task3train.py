@@ -58,7 +58,11 @@ def corated_helper(business_reviews_tuple, a, b):
 
 
 def item_based():
-
+    """
+    Case 1 item based. Get candidate business pairs with more than 3 corated users
+    :return: Candidate pairs
+    eg [(0, 7336), (0, 9492), (0, 5908), (0, 5152), (0, 6622)]
+    """
     # Group the reviews by business
     business_reviews = reviews.map(lambda x: (x[1], (x[0], x[2])))\
         .groupByKey()\
@@ -76,9 +80,46 @@ def item_based():
 
     # Remove those who has less than 3 corated users
     candidate_pairs = all_pairs.filter(lambda x: corated_helper(business_reviews_tuple, x[0], x[1]))
-    print("Number of candidate pairs: " + candidate_pairs.count())
-
+    # print("Number of candidate pairs: " + str(candidate_pairs.count()))
     return candidate_pairs
+
+
+def pearson_helper(data, a, b, avg_a, avg_b):
+    """
+    Pearson for item based
+    :param data: Tuple of business reviews or user reviews
+    :param a: User/Business A's number
+    :param b: User/Business B's number
+    :param avg_a: User/Business A's average rating
+    :param avg_b: User/Business B's average rating
+    :return: Pearson correlation value
+    """
+    # Find corated items
+    corate_set = set(data[a].keys()).intersection(set(data[b].keys()))
+
+    # Get the normalized vectors of a and b
+    vec_a = [data[a].get(item) - avg_a for item in corate_set]
+    vec_b = [data[b].get(item) - avg_b for item in corate_set]
+
+    numerator = sum([x*y for x, y in zip(vec_a, vec_b)])
+    denominator = math.sqrt(sum([x ** 2 for x in vec_a])) * math.sqrt(sum([x ** 2 for x in vec_b]))
+    result = numerator / denominator
+    return result
+
+
+def reading_average(business_avg_file, user_avg_file):
+    """
+    Reading the averages of businesses and users
+    :param business_avg_file:
+    :param user_avg_file:
+    :return:
+    """
+    with open(business_avg_file) as file:
+        business_avg = json.load(file)
+    with open(user_avg_file) as file:
+        user_avg = json.load(file)
+    # TODO: Complete this
+    return
 
 
 if __name__ == '__main__':
@@ -104,7 +145,7 @@ if __name__ == '__main__':
     print("Duration Initialize: " + str(totaltime))
 
     # ============================ Item based ==========================
-    item_based()
+    candidate_pairs = item_based()
     totaltime = time.time() - time1
     print("Duration Item Based: " + str(totaltime))
 
