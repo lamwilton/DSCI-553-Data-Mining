@@ -60,8 +60,9 @@ def corated_helper(business_reviews_tuple, a, b):
 def item_based():
     """
     Case 1 item based. Get candidate business pairs with more than 3 corated users
-    :return: Candidate pairs
-    eg [(0, 7336), (0, 9492), (0, 5908), (0, 5152), (0, 6622)]
+    :return: Candidate pairs and business_reviews_tuple
+    candidate_pairs eg [(0, 7336), (0, 9492), (0, 5908), (0, 5152), (0, 6622)]
+    business_reviews_tuple eg ({24267: 1.0, 5670: 3.0, 15085: 2.0, 7731: 3.0, 300: 3.0, ...}, {...})
     """
     # Group the reviews by business
     business_reviews = reviews.map(lambda x: (x[1], (x[0], x[2])))\
@@ -81,7 +82,7 @@ def item_based():
     # Remove those who has less than 3 corated users
     candidate_pairs = all_pairs.filter(lambda x: corated_helper(business_reviews_tuple, x[0], x[1]))
     # print("Number of candidate pairs: " + str(candidate_pairs.count()))
-    return candidate_pairs
+    return candidate_pairs, business_reviews_tuple
 
 
 def pearson_helper(data, a, b, avg_a, avg_b):
@@ -101,9 +102,12 @@ def pearson_helper(data, a, b, avg_a, avg_b):
     vec_a = [data[a].get(item) - avg_a for item in corate_set]
     vec_b = [data[b].get(item) - avg_b for item in corate_set]
 
-    numerator = sum([x*y for x, y in zip(vec_a, vec_b)])
+    numerator = sum([x * y for x, y in zip(vec_a, vec_b)])
     denominator = math.sqrt(sum([x ** 2 for x in vec_a])) * math.sqrt(sum([x ** 2 for x in vec_b]))
-    result = numerator / denominator
+    if denominator == 0:
+        return 0
+    else:
+        result = numerator / denominator
     return result
 
 
@@ -112,14 +116,17 @@ def reading_average(business_avg_file, user_avg_file):
     Reading the averages of businesses and users
     :param business_avg_file:
     :param user_avg_file:
-    :return:
+    :return: business average and user average as dict
+    business_avg eg {5897: 3.675438596491228, 2547: 4.343283582089552, 763: 4.001680672268908, ...}
+    user_avg eg {3729: 3.5952380952380953, 14423: 4.555555555555555, 24308: 3.6818181818181817, ...}
     """
     with open(business_avg_file) as file:
-        business_avg = json.load(file)
+        business_avg_read = json.load(file)
     with open(user_avg_file) as file:
-        user_avg = json.load(file)
-    # TODO: Complete this
-    return
+        user_avg_read = json.load(file)
+    business_avg = {businesses_dict[k]: v for k, v in business_avg_read.items()}
+    user_avg = {users_dict[k]: v for k, v in user_avg_read.items()}
+    return business_avg, user_avg
 
 
 if __name__ == '__main__':
@@ -137,6 +144,8 @@ if __name__ == '__main__':
     input_file = sys.argv[1]
     output_file = sys.argv[2]
     case = sys.argv[3]
+    business_avg_file = "business_avg.json"
+    user_avg_file = "user_avg.json"
 
     # ============================ Read file and Initialize ==========================
     lines = sc.textFile(input_file).distinct()
@@ -144,8 +153,12 @@ if __name__ == '__main__':
     totaltime = time.time() - time1
     print("Duration Initialize: " + str(totaltime))
 
-    # ============================ Item based ==========================
-    candidate_pairs = item_based()
+    # ============================ Item/business based ==========================
+    candidate_pairs, business_reviews_tuple = item_based()
+    business_avg, user_avg = reading_average(business_avg_file, user_avg_file)
+    final_pairs = candidate_pairs.map(lambda x: (x[0], x[1], pearson_helper(data=business_reviews_tuple, a=x[0], b=x[1], avg_a=business_avg[x[0]], avg_b=business_avg[x[1]])))\
+        .filter(lambda x: x[2] > 0)
+    print("Number of pairs final: " + str(final_pairs.count()))
     totaltime = time.time() - time1
     print("Duration Item Based: " + str(totaltime))
 
