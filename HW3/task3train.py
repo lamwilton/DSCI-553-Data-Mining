@@ -41,14 +41,44 @@ def initialize():
     reviews = reviews_long.map(lambda x: (users_dict[x[0]], businesses_dict[x[1]], x[2])) \
         .persist()
     reviews_long.unpersist()
-    # Take Cartesian product with itself and generate business pairs, also the length of intersection between two sets
-    # eg (('WEeMwRLhgCyO1b4kikVcuQ', 'YQ--LJ7pvjiDSqNv0TuKTQ'), 3)
-    #pairs = businesses.cartesian(businesses) \
-    #    .map(lambda x: ((x[0][0], x[1][0]), len(x[0][1].intersection(x[1][1]))))
-
-    # Filter only those with 3 or above corated users, also I dont want the same business
-    #result = pairs.filter(lambda x: x[0][0] != x[0][1] and x[1] >= 3).collect()
     return reviews, businesses_inv, users_inv, businesses_dict, users_dict
+
+
+def corated_helper(business_reviews_tuple, a, b):
+    """
+    Check if business pair has more than 3 corated users
+    :param business_reviews_tuple: Tuple of business reviews
+    :param a: Business A's number
+    :param b: Business B's number
+    :return: True if corated users >= 3
+    """
+    if len(set(business_reviews_tuple[a].keys()).intersection(set(business_reviews_tuple[b].keys()))) >= 3:
+        return True
+    return False
+
+
+def item_based():
+
+    # Group the reviews by business
+    business_reviews = reviews.map(lambda x: (x[1], (x[0], x[2])))\
+        .groupByKey()\
+        .map(lambda x: (x[0], dict(x[1].data)))\
+        .persist()
+
+    # Output as a tuple of dict, index = business number
+    # eg ({24267: 1.0, 5670: 3.0, 15085: 2.0, 7731: 3.0, 300: 3.0, ...}, {...})
+    business_reviews_tuple = tuple(business_reviews.sortByKey().map(lambda x: x[1]).collect())
+
+    # Generate all pairs of businesses
+    businesses = business_reviews.map(lambda x: x[0])
+    all_pairs = businesses.cartesian(businesses)\
+        .filter(lambda x: x[0] < x[1])
+
+    # Remove those who has less than 3 corated users
+    candidate_pairs = all_pairs.filter(lambda x: corated_helper(business_reviews_tuple, x[0], x[1]))
+    print("Number of candidate pairs: " + candidate_pairs.count())
+
+    return candidate_pairs
 
 
 if __name__ == '__main__':
@@ -58,7 +88,7 @@ if __name__ == '__main__':
     conf = SparkConf()
     conf.set("spark.driver.memory", "4g")
     conf.set("spark.executor.memory", "4g")
-    conf.set("spark.master", "local[*]")
+    conf.set("spark.master", "local[2]")  # Change to local[*] on vocareum
     conf.set("spark.app.name", "task3")
     conf.set("spark.driver.maxResultSize", "4g")
     sc = SparkContext.getOrCreate(conf)
@@ -72,6 +102,11 @@ if __name__ == '__main__':
     reviews, businesses_inv, users_inv, businesses_dict, users_dict = initialize()
     totaltime = time.time() - time1
     print("Duration Initialize: " + str(totaltime))
+
+    # ============================ Item based ==========================
+    item_based()
+    totaltime = time.time() - time1
+    print("Duration Item Based: " + str(totaltime))
 
     # ========================================== Ending ==========================================
     totaltime = time.time() - time1

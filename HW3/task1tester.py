@@ -1,4 +1,6 @@
 import task1
+import random
+import sys
 
 def minhash(table, a, b, num_business):
     """
@@ -40,6 +42,20 @@ def jaccard(a, b):
     return tuple((a, b, similarity))
 
 
+def hash_func_generate(num_func):
+    """
+    Generate hash functions a and b
+    :return: list of a and b pairs
+    eg [[983, 294], [1777, 208], [557, 236], ...]
+    """
+    result = []
+    a = random.sample(range(1000, sys.maxsize), num_func)
+    b = random.sample(range(1000, sys.maxsize), num_func)
+    for i in range(0, num_func):
+        result.append([a[i], b[i]])
+    return result
+
+
 if __name__ == '__main__':
     print("Testing minhash======================================================")
     print(str(minhash([{0,3},{2},{1},{0,2,3},{2}], a=1, b=1, num_business=4)) + " Expected [1, 3, 0, 1]")
@@ -49,7 +65,7 @@ if __name__ == '__main__':
     print()
 
     print("Testing hash function generator======================================================")
-    print(task1.hash_func_generate(200))
+    print(hash_func_generate(num_func=40))
     print()
 
     print("Testing signature======================================================")
