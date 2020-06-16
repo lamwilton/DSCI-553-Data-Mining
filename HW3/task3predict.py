@@ -3,6 +3,7 @@ import sys
 import time
 import json
 from collections import defaultdict
+import os
 
 
 def initialize():
@@ -42,6 +43,27 @@ def initialize():
         .persist()
     reviews_long.unpersist()
     return reviews, businesses_inv, users_inv, businesses_dict, users_dict
+
+
+def reading_average_files(business_avg_file, user_avg_file):
+    """
+    Reading the averages of businesses and users
+    :param business_avg_file:
+    :param user_avg_file:
+    :return: business average and user average as dict
+    business_avg eg {5897: 3.675438596491228, 2547: 4.343283582089552, 763: 4.001680672268908, ... , "UNK": 3.823989}
+    user_avg eg {3729: 3.5952380952380953, 14423: 4.555555555555555, 24308: 3.6818181818181817, ..., "UNK": 3.823989}
+    "UNK" for both is 3.823989
+    """
+    with open(business_avg_file) as file:
+        business_avg_read = json.load(file)
+    with open(user_avg_file) as file:
+        user_avg_read = json.load(file)
+    business_avg = {businesses_dict[k]: v for k, v in business_avg_read.items() if k != "UNK"}
+    user_avg = {users_dict[k]: v for k, v in user_avg_read.items() if k != "UNK"}
+    business_avg.update({"UNK": business_avg_read["UNK"]})
+    user_avg.update({"UNK": user_avg_read["UNK"]})
+    return business_avg, user_avg
 
 
 def initialize_item_based():
@@ -97,7 +119,7 @@ def prediction_item_based(user, business):
     :param business: Testing business
     :return: Predicted rating
     """
-    K = 5  # Number of nearest neighbours to use
+    K = 3  # Number of nearest neighbours to use
     sim_business = model_dict[business]  # Get all similar businesses from model of business of interest
     user_reviews = reviews_dict[user]  # Get reviews of user of interest
     neighbours = set(sim_business.keys()).intersection(set(user_reviews.keys()))  # Get similar businesses which is rated by that user of interest
@@ -108,8 +130,10 @@ def prediction_item_based(user, business):
     ratings_sublist = ratings_list[0:K]
     numerator = sum([x * y for x, y in ratings_sublist])
     denominator = sum([x for x, y in ratings_sublist])
-    if denominator == 0:
-        return 0
+
+    # If no corated users at all, return average score of business. If business not in model, return the "UNK" default score
+    if numerator == 0 or denominator == 0:
+        return business_avg.get(business, business_avg.get("UNK"))
     else:
         result = numerator / denominator
     return result
@@ -132,10 +156,13 @@ if __name__ == '__main__':
     model_file = sys.argv[3]
     output_file = sys.argv[4]
     cf_type = sys.argv[5]
+    business_avg_file = os.path.join(os.path.dirname(input_file), "business_avg.json")
+    user_avg_file = os.path.join(os.path.dirname(input_file), "user_avg.json")
 
     # ============================ Read train file and Initialize ==========================
     lines = sc.textFile(input_file).distinct()
     reviews, businesses_inv, users_inv, businesses_dict, users_dict = initialize()
+    business_avg, user_avg = reading_average_files(business_avg_file, user_avg_file)
     totaltime = time.time() - time1
     print("Duration Initialize: " + str(totaltime))
 
@@ -148,9 +175,9 @@ if __name__ == '__main__':
     print("Duration read test/model: " + str(totaltime))
 
     # ========================== Do the prediction ==========================
-    # Item based eg ((13465, 8849), 4.096186807416058), ((21851, 958), 3.097635508434237)
+    # Item based eg ((('QtMgqKY_GF3XkOpXonaExA', 'IJUCRd5v-XLkcGrKjb8IfA'), 4.096186807416058), (('nwvnNIixvyYTg4JS8g3Xgg', 'WQyGqfFKd-baBTVfZWzeTw'), 3.097635508434237)
     if cf_type == "item_based":
-        result = test_pairs.map(lambda x: ((x[0], x[1]), prediction_item_based(x[0], x[1]))).collect()
+        result = test_pairs.map(lambda x: ((users_inv[x[0]], businesses_inv[x[1]]), prediction_item_based(x[0], x[1]))).collect()
     totaltime = time.time() - time1
     print("Duration predict: " + str(totaltime))
 
