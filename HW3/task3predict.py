@@ -3,6 +3,57 @@ import sys
 import time
 import json
 import math
+from collections import defaultdict
+
+
+def initialize():
+    """
+    Read file and make dictionaries to shorten the long user and business IDs
+    :return: reviews, businesses_inv, users_inv, businesses_dict, users_dict
+    eg for reviews [(20513, 2236, 5.0), (24264, 7332, 4.0), (16861, 9483, 5.0), ...]
+
+    Number of businesses = 10253
+    Number of users = 26184
+    """
+    # Get reviews
+    # eg ('VTbkwu0nGwtD6xiIdtD00Q', 'fjMXGgOr3aCxnN48kovZ_Q', 5.0)
+    reviews_long = lines.filter(lambda line: len(line) != 0) \
+        .map(lambda line: (json.loads(line))) \
+        .map(lambda x: (x['user_id'], x['business_id'], x['stars'])) \
+        .filter(lambda x: x[0] is not None and x[1] is not None and x[2] is not None and x[0] != "" and x[1] != "" and x[2] != "") \
+        .persist()
+
+    # Get lists of unique businesses and users as inverse dictionary from integer code to ID
+    businesses_inv = tuple(reviews_long.map(lambda x: x[1]).distinct().collect())
+    users_inv = tuple(reviews_long.map(lambda x: x[0]).distinct().collect())
+
+    # Make dictionaries to convert long IDs to integer code
+    businesses_dict = defaultdict(int)
+    for i in range(len(businesses_inv)):
+        businesses_dict[businesses_inv[i]] = i
+    users_dict = defaultdict(int)
+    for i in range(len(users_inv)):
+        users_dict[users_inv[i]] = i
+
+    # Get a shorter version of the reviews_long crap
+    # eg [(20513, 2236, 5.0), (24264, 7332, 4.0), (16861, 9483, 5.0), ...]
+    reviews = reviews_long.map(lambda x: (users_dict[x[0]], businesses_dict[x[1]], x[2])) \
+        .persist()
+    reviews_long.unpersist()
+    return reviews, businesses_inv, users_inv, businesses_dict, users_dict
+
+
+def initialize_item_based():
+    # Read test file
+    test_pairs = test_lines.filter(lambda line: len(line) != 0) \
+        .map(lambda s: (json.loads(s)['user_id'], json.loads(s)['business_id'])) \
+        .filter(lambda x: x[0] is not None and x[1] is not None and x[0] != "" and x[1] != "")
+
+    # Read Model file
+    model_pairs = model_lines.filter(lambda line: len(line) != 0) \
+        .map(lambda line: (json.loads(line))) \
+        .map(lambda x: (x['b1'], x['b2'], x['sim'])) \
+        .filter(lambda x: x[0] is not None and x[1] is not None and x[2] is not None and x[0] != "" and x[1] != "" and x[2] != "")
 
 
 if __name__ == '__main__':
@@ -21,8 +72,16 @@ if __name__ == '__main__':
     test_file = sys.argv[2]
     model_file = sys.argv[3]
     output_file = sys.argv[4]
-    case = sys.argv[5]
+    cf_type = sys.argv[5]
 
-    # ============================ Read file and Initialize ==========================
-    train_lines = sc.textFile(input_file).distinct()
+    # ============================ Read train file and Initialize ==========================
+    lines = sc.textFile(input_file).distinct()
+    reviews, businesses_inv, users_inv, businesses_dict, users_dict = initialize()
+    totaltime = time.time() - time1
+    print("Duration Initialize: " + str(totaltime))
+
+    # ========================== Read test and model files ==========================
     test_lines = sc.textFile(test_file).distinct()
+    model_lines = sc.textFile(model_file).distinct()
+    if cf_type == "item_based":
+        initialize_item_based()

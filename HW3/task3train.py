@@ -141,7 +141,7 @@ if __name__ == '__main__':
     sc.setLogLevel("ERROR")
     input_file = sys.argv[1]
     output_file = sys.argv[2]
-    case = sys.argv[3]
+    cf_type = sys.argv[3]
     business_avg_file = "business_avg.json"
     user_avg_file = "user_avg.json"
 
@@ -152,16 +152,17 @@ if __name__ == '__main__':
     print("Duration Initialize: " + str(totaltime))
 
     # ============================ Item/business based ==========================
-    candidate_pairs, business_reviews_tuple = item_based()
-    final_pairs_pre = candidate_pairs.map(lambda x: (x[0], x[1], pearson_helper(data=business_reviews_tuple, a=x[0], b=x[1])))\
-        .filter(lambda x: x[2] > 0)
+    if cf_type == "item_based":
+        candidate_pairs, business_reviews_tuple = item_based()
+        final_pairs_pre = candidate_pairs.map(lambda x: (x[0], x[1], pearson_helper(data=business_reviews_tuple, a=x[0], b=x[1])))\
+            .filter(lambda x: x[2] > 0)
 
-    # Get the business ID back
-    final_result = final_pairs_pre.map(lambda x: (businesses_inv[x[0]], businesses_inv[x[1]], x[2])).collect()
-    print("Number of pairs final: " + str(len(final_result)))
+        # Get the business ID back
+        final_result = final_pairs_pre.map(lambda x: (businesses_inv[x[0]], businesses_inv[x[1]], x[2])).collect()
+        print("Number of pairs final: " + str(len(final_result)))
 
-    totaltime = time.time() - time1
-    print("Duration Item Based: " + str(totaltime))
+        totaltime = time.time() - time1
+        print("Duration Item Based: " + str(totaltime))
 
     # ======================================= Write results =======================================
     final_result_write = format_output(final_result)
