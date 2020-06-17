@@ -10,7 +10,8 @@ def char_table():
     """
     Read file and convert business id to numbers
     :return: characteristic table(rows = users, each row is set of businesses), list of businesses (from number to string)
-    eg [(userid1, {12, 2, 4, 23, 42, 25}), ...] and [businessid1, businessid2, businessid3, ...]
+    table1 eg [{12, 2, 4, 23, 42, 25}, ...] The index of the list is the user code!
+    businesslist eg [businessid1, businessid2, businessid3, ...]
     """
     def tablehelper(x):
         """

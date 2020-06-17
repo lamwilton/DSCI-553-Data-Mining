@@ -154,6 +154,41 @@ def user_based_minhash():
     return result_minhash
 
 
+def lsh_signature(minhashes):
+    """
+    * Copied from task 1
+
+    LSH with band size of 1 rows (r = 1)
+    :param minhashes: 2d list of minhashes
+    :return: Set of Candidate pairs
+    eg {(241, 235), (3242 ,2352), ...}
+    """
+    result = set()
+    num_business = len(minhashes[0])
+    for i in range(num_business):
+        for j in range(i + 1, num_business):
+            if minhashes[0][i] == minhashes[0][j]:
+                result.add((i, j))
+    return result
+
+
+def user_based_lsh():
+    """
+    Do LSH user based as in Task 1
+    :return:
+    """
+    R = 1   # Number of rows in a band
+    lsh_input = []
+    for i in range(0, len(result_minhash), R):
+        lsh_input.append(result_minhash[i:i+R])
+    lsh_input1 = sc.parallelize(lsh_input)
+    lsh_part = lsh_input1.map(lsh_signature).collect()
+    result_lsh = set()
+    for item in lsh_part:
+        result_lsh = result_lsh.union(item)
+    return result_lsh
+
+
 def pearson_helper(data, a, b):
     """
     Pearson for item based
@@ -242,6 +277,10 @@ if __name__ == '__main__':
         result_minhash = user_based_minhash()
         totaltime = time.time() - time1
         print("Duration minhash: " + str(totaltime))
+
+        result_lsh = user_based_lsh()
+        totaltime = time.time() - time1
+        print("Duration LSH: " + str(totaltime))
 
     # ======================================= Write results =======================================
     final_result_write = format_output(final_result)
