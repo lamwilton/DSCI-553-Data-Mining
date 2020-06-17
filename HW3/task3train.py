@@ -350,7 +350,7 @@ if __name__ == '__main__':
         print("Number of pairs final: " + str(len(final_result)))
 
         totaltime = time.time() - time1
-        print("Duration Item Based: " + str(totaltime))
+        print("Duration User Based: " + str(totaltime))
 
     # ======================================= Write results =======================================
     if cf_type == "item_based":
