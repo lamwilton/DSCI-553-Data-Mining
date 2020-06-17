@@ -1,6 +1,9 @@
 import task1
 import random
 import sys
+from collections import defaultdict
+import itertools
+
 
 def minhash(table, a, b, num_business):
     """
@@ -56,6 +59,26 @@ def hash_func_generate(num_func):
     return result
 
 
+def lsh_signature(minhashes):
+    """
+    * Improved to O(n) runtime using defaultdict
+
+    LSH with band size of 1 rows (r = 1)
+    :param minhashes: 2d list of minhashes
+    :return: Set of Candidate pairs
+    eg {(241, 235), (3242 ,2352), ...}
+    """
+    result = set()
+    minhash = minhashes[0]  # convert to 1d
+    tally = defaultdict(list)
+    for i, item in enumerate(minhash):
+        tally[item].append(i)
+    for item in tally.values():
+        if len(item) > 1:
+            result = result.union(set(itertools.combinations(item, 2)))
+    return result
+
+
 if __name__ == '__main__':
     print("Testing minhash======================================================")
     print(str(minhash([{0,3},{2},{1},{0,2,3},{2}], a=1, b=1, num_business=4)) + " Expected [1, 3, 0, 1]")
@@ -71,6 +94,10 @@ if __name__ == '__main__':
     print("Testing signature======================================================")
     print(task1.lsh_signature([[1, 0, 2, 4, 5, 3, 2, 1, 1], [2, 0, 2, 6, 1, 5, 4, 8, 2]]))
     print(task1.lsh_signature([[1, 0, 2, 4, 4, 3, 2, 1, 1], [2, 0, 2, 6, 6, 5, 4, 8, 2]]))
+    print()
+
+    print("Testing new signature======================================================")
+    print(lsh_signature([[1, 0, 2, 4, 5, 3, 2, 1, 1]]))
     print()
 
     print("Testing Jaccard======================================================")

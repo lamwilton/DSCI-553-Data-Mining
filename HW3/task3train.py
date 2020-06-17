@@ -147,7 +147,7 @@ def user_based_minhash():
     :return: Minhashing results
     """
     business_reviews_broad = sc.broadcast(business_reviews)
-    hash_ab = hash_func_generate(num_func=40)
+    hash_ab = hash_func_generate(num_func=30)
     hash_ab_rdd = sc.parallelize(hash_ab)
     result_minhash = hash_ab_rdd.map(lambda x: minhash(business_reviews_broad, x[0], x[1], len(users_inv))).collect()
     business_reviews_broad.destroy()
@@ -174,7 +174,7 @@ def lsh_signature(minhashes):
 
 def user_based_lsh():
     """
-    Do LSH user based as in Task 1
+    Do LSH user based as in Task 1, improved union step
     :return:
     """
     R = 1   # Number of rows in a band
@@ -182,10 +182,8 @@ def user_based_lsh():
     for i in range(0, len(result_minhash), R):
         lsh_input.append(result_minhash[i:i+R])
     lsh_input1 = sc.parallelize(lsh_input)
-    lsh_part = lsh_input1.map(lsh_signature).collect()
-    result_lsh = set()
-    for item in lsh_part:
-        result_lsh = result_lsh.union(item)
+    result_lsh = lsh_input1.map(lsh_signature)\
+        .reduce(lambda a, b: a.union(b))
     return result_lsh
 
 
@@ -239,7 +237,7 @@ if __name__ == '__main__':
     conf = SparkConf()
     conf.set("spark.driver.memory", "4g")
     conf.set("spark.executor.memory", "4g")
-    conf.set("spark.master", "local[2]")  # Change to local[*] on vocareum
+    conf.set("spark.master", "local[*]")  # Change to local[*] on vocareum
     conf.set("spark.app.name", "task3")
     conf.set("spark.driver.maxResultSize", "4g")
     sc = SparkContext.getOrCreate(conf)
