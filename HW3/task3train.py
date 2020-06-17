@@ -85,6 +85,49 @@ def item_based():
     return candidate_pairs, business_reviews_tuple
 
 
+def format_output(final_result):
+    """
+    Format output file
+    :return: List of dictionaries
+    :param final_result: List of tuples
+    eg [{'b1': businessid1, 'b2': businessid2, 'sim': 0.07693}, {'b1': businessid1, 'b2': businessid2, 'sim': 0.052632}, ...]
+    """
+    result = []
+    for item in final_result:
+        result.append({'b1': item[0], 'b2': item[1], 'sim': item[2]})
+    return result
+
+
+def pearson_helper(data, a, b):
+    """
+    Pearson for item based
+    :param data: Tuple of business reviews or user reviews
+    :param a: User/Business A's number
+    :param b: User/Business B's number
+    :param avg_a: User/Business A's average rating
+    :param avg_b: User/Business B's average rating
+    :return: Pearson correlation value
+    """
+    # Find corated items
+    corate_set = set(data[a].keys()).intersection(set(data[b].keys()))
+
+    # Get the normalized vectors of a and b
+    vec_a_pre = [data[a].get(item) for item in corate_set]
+    vec_b_pre = [data[b].get(item) for item in corate_set]
+    avg_a = sum(vec_a_pre) / len(vec_a_pre)
+    avg_b = sum(vec_b_pre) / len(vec_b_pre)
+    vec_a = list(map(lambda x: x - avg_a, vec_a_pre))
+    vec_b = list(map(lambda x: x - avg_b, vec_b_pre))
+
+    numerator = sum([x * y for x, y in zip(vec_a, vec_b)])
+    denominator = math.sqrt(sum([x ** 2 for x in vec_a])) * math.sqrt(sum([x ** 2 for x in vec_b]))
+    if denominator == 0:
+        return 0
+    else:
+        result = numerator / denominator
+    return result
+
+
 def user_based():
     """
     Group the reviews by business and remove ratings and business code to prepare for minhash
@@ -187,46 +230,56 @@ def user_based_lsh():
     return result_lsh
 
 
-def pearson_helper(data, a, b):
+def jaccard(pair):
     """
-    Pearson for item based
-    :param data: Tuple of business reviews or user reviews
-    :param a: User/Business A's number
-    :param b: User/Business B's number
-    :param avg_a: User/Business A's average rating
-    :param avg_b: User/Business B's average rating
-    :return: Pearson correlation value
+    * Copied and edited for task 1
+
+    Find jaccard of a pair of users
+    :param pair: user num (int)
+    :return: tuple of users and their Jaccard similarity
+    eg (436, 21398, 0.05)
     """
-    # Find corated items
-    corate_set = set(data[a].keys()).intersection(set(data[b].keys()))
-
-    # Get the normalized vectors of a and b
-    vec_a_pre = [data[a].get(item) for item in corate_set]
-    vec_b_pre = [data[b].get(item) for item in corate_set]
-    avg_a = sum(vec_a_pre) / len(vec_a_pre)
-    avg_b = sum(vec_b_pre) / len(vec_b_pre)
-    vec_a = list(map(lambda x: x - avg_a, vec_a_pre))
-    vec_b = list(map(lambda x: x - avg_b, vec_b_pre))
-
-    numerator = sum([x * y for x, y in zip(vec_a, vec_b)])
-    denominator = math.sqrt(sum([x ** 2 for x in vec_a])) * math.sqrt(sum([x ** 2 for x in vec_b]))
-    if denominator == 0:
-        return 0
+    # Look up user_reviews_tuple for the sets
+    a = set(user_reviews_tuple[pair[0]].keys())
+    b = set(user_reviews_tuple[pair[1]].keys())
+    union = len(a.union(b))
+    if union == 0:
+        similarity = 0
     else:
-        result = numerator / denominator
-    return result
+        similarity = len(a.intersection(b)) / union
+    return tuple((pair[0], pair[1], similarity))
 
 
-def format_output(final_result):
+def user_based_after():
     """
-    Format output file
-    :param final_result: List of tuples
+    Case 2 user based. Get candidate user pairs with more than 3 corated businesses. As in item_based()
+    :return: Candidate pairs and user_reviews_tuple
+    """
+    # Group the reviews by user
+    user_reviews = reviews.map(lambda x: (x[0], (x[1], x[2])))\
+        .groupByKey()\
+        .map(lambda x: (x[0], dict(x[1].data)))\
+        .persist()
+
+    # Output as a tuple of dict, index = business number
+    # eg ({24267: 1.0, 5670: 3.0, 15085: 2.0, 7731: 3.0, 300: 3.0, ...}, {...})
+    user_reviews_tuple = tuple(user_reviews.sortByKey().map(lambda x: x[1]).collect())
+
+    # Remove those who has less than 3 corated users
+    candidate_pairs = result_lsh_rdd.filter(lambda x: corated_helper(user_reviews_tuple, x[0], x[1]))
+    return candidate_pairs, user_reviews_tuple
+
+
+def format_output_user_based(final_result):
+    """
+    Format output file for user based
     :return: List of dictionaries
-    eg [{'b1': businessid1, 'b2': businessid2, 'sim': 0.07693}, {'b1': businessid1, 'b2': businessid2, 'sim': 0.052632}, ...]
+    :param final_result: List of tuples
+    eg [{'u1': userid1, 'u2': userid2, 'sim': 0.07693}, {'u1': userid1, 'u2': userid2, 'sim': 0.052632}, ...]
     """
     result = []
     for item in final_result:
-        result.append({'b1': item[0], 'b2': item[1], 'sim': item[2]})
+        result.append({'u1': item[0], 'u2': item[1], 'sim': item[2]})
     return result
 
 
@@ -237,7 +290,7 @@ if __name__ == '__main__':
     conf = SparkConf()
     conf.set("spark.driver.memory", "4g")
     conf.set("spark.executor.memory", "4g")
-    conf.set("spark.master", "local[*]")  # Change to local[*] on vocareum
+    conf.set("spark.master", "local[4]")  # Change to local[*] on vocareum
     conf.set("spark.app.name", "task3")
     conf.set("spark.driver.maxResultSize", "4g")
     sc = SparkContext.getOrCreate(conf)
@@ -276,12 +329,35 @@ if __name__ == '__main__':
         totaltime = time.time() - time1
         print("Duration minhash: " + str(totaltime))
 
+        # Doing LSH
         result_lsh = user_based_lsh()
         totaltime = time.time() - time1
         print("Duration LSH: " + str(totaltime))
 
+        # Filter less than 3 corated
+        result_lsh_rdd = sc.parallelize(list(result_lsh))
+        candidate_pairs, user_reviews_tuple = user_based_after()
+
+        # Do Jaccard and Pearson
+        candidate_pairs2 = candidate_pairs.map(lambda x: jaccard(x)) \
+            .filter(lambda x: x[2] >= 0.01)
+        final_pairs_pre = candidate_pairs2.map(
+            lambda x: (x[0], x[1], pearson_helper(data=user_reviews_tuple, a=x[0], b=x[1]))) \
+            .filter(lambda x: x[2] > 0)
+
+        # Get the user ID back
+        final_result = final_pairs_pre.map(lambda x: (users_inv[x[0]], users_inv[x[1]], x[2])).collect()
+        print("Number of pairs final: " + str(len(final_result)))
+
+        totaltime = time.time() - time1
+        print("Duration Item Based: " + str(totaltime))
+
     # ======================================= Write results =======================================
-    final_result_write = format_output(final_result)
+    if cf_type == "item_based":
+        final_result_write = format_output(final_result)
+    else:
+        final_result_write = format_output_user_based(final_result)
+
     with open(output_file, "w") as file:
         for line in final_result_write:
             file.write(json.dumps(line))
