@@ -2,6 +2,7 @@ from pyspark import SparkContext, SparkConf
 import sys
 import time
 import json
+import random
 import math
 from collections import defaultdict
 
@@ -84,6 +85,75 @@ def item_based():
     return candidate_pairs, business_reviews_tuple
 
 
+def user_based():
+    """
+    Group the reviews by business and remove ratings and business code to prepare for minhash
+    :return: business_reviews
+    eg [{15107, 9477, 773, ...}, {13698, 19075, 14980, ...}]
+    The index of the list is the business code!
+    """
+    business_reviews = reviews.map(lambda x: (x[1], x[0])) \
+        .groupByKey() \
+        .map(lambda x: (x[0], set(x[1].data))) \
+        .sortByKey() \
+        .map(lambda x: x[1]) \
+        .collect()
+    return business_reviews
+
+
+def minhash(table, a, b, num_business):
+    """
+    * Copied from task 1
+
+    Minhash method
+    :param table: Characteristic table with row = users
+    :param a:
+    :param b:
+    :param num_business: Total number of or users
+    :return: Minhash of one hash function
+    eg [749, 724, 194, 11, 103, 115, 216, 955, 192, 322, 105, 704, 32, ...]
+    """
+    table = table.value
+    m = len(table)
+    p = 479001599
+    result = [(m + 10) for _ in range(num_business)]
+    for row in range(len(table)):
+        hashvalue = ((a * row + b) % p) % m
+        for business_id in table[row]:
+            if hashvalue < result[business_id]:
+                result[business_id] = hashvalue
+    return result
+
+
+def hash_func_generate(num_func):
+    """
+    * Copied from task 1
+
+    Generate hash functions a and b
+    :return: list of a and b pairs
+    eg [[983, 294], [1777, 208], [557, 236], ...]
+    """
+    result = []
+    primes = random.sample(range(1000, sys.maxsize), num_func)
+    b = random.sample(range(1000, sys.maxsize), num_func)
+    for i in range(0, num_func):
+        result.append([primes[i], b[i]])
+    return result
+
+
+def user_based_minhash():
+    """
+    Minhashing as in task 1 but with users instead of businesses
+    :return: Minhashing results
+    """
+    business_reviews_broad = sc.broadcast(business_reviews)
+    hash_ab = hash_func_generate(num_func=40)
+    hash_ab_rdd = sc.parallelize(hash_ab)
+    result_minhash = hash_ab_rdd.map(lambda x: minhash(business_reviews_broad, x[0], x[1], len(users_inv))).collect()
+    business_reviews_broad.destroy()
+    return result_minhash
+
+
 def pearson_helper(data, a, b):
     """
     Pearson for item based
@@ -163,6 +233,15 @@ if __name__ == '__main__':
 
         totaltime = time.time() - time1
         print("Duration Item Based: " + str(totaltime))
+
+    # =================================== User based =====================================
+    else:
+        business_reviews = user_based()
+
+        # Doing the Minhashing (As in task 1)
+        result_minhash = user_based_minhash()
+        totaltime = time.time() - time1
+        print("Duration minhash: " + str(totaltime))
 
     # ======================================= Write results =======================================
     final_result_write = format_output(final_result)
