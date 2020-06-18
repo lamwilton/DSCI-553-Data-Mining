@@ -290,7 +290,7 @@ if __name__ == '__main__':
     conf = SparkConf()
     conf.set("spark.driver.memory", "4g")
     conf.set("spark.executor.memory", "4g")
-    conf.set("spark.master", "local[4]")  # Change to local[*] on vocareum
+    conf.set("spark.master", "local[*]")  # Change to local[*] on vocareum
     conf.set("spark.app.name", "task3")
     conf.set("spark.driver.maxResultSize", "4g")
     sc = SparkContext.getOrCreate(conf)
