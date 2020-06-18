@@ -192,7 +192,7 @@ def prediction_user_based(user, business):
     :param business: Testing business
     :return: Predicted rating
     """
-    K = 7  # Number of nearest neighbours to use
+    K = 14  # Number of nearest neighbours to use
     sim_user = model_dict[user]  # Get all similar users from model of user of interest
     business_reviews = reviews_dict[business]  # Get reviews of business of interest
     neighbours = set(sim_user.keys()).intersection(set(business_reviews.keys()))  # Get similar users which is rated by that business of interest
