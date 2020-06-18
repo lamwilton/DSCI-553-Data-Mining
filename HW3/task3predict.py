@@ -187,7 +187,7 @@ def initialize_user_based():
 
 def prediction_user_based(user, business):
     """
-    User-based prediction formula. Requires average ratings of users as a dict
+    User-based prediction formula
     :param user: Testing user
     :param business: Testing business
     :return: Predicted rating
@@ -232,7 +232,7 @@ if __name__ == '__main__':
     business_avg_file = os.path.join(os.path.dirname(input_file), "business_avg.json")
     user_avg_file = os.path.join(os.path.dirname(input_file), "user_avg.json")
 
-    # ============================ Read train file, average rating files and Initialize ==========================
+    # ============================ Read train file and Initialize ==========================
     lines = sc.textFile(input_file).distinct()
     reviews, businesses_inv, users_inv, businesses_dict, users_dict = initialize()
     business_avg, user_avg = reading_average_files(business_avg_file, user_avg_file)
