@@ -187,28 +187,28 @@ def initialize_user_based():
 
 def prediction_user_based(user, business):
     """
-    User-based prediction formula
+    User-based prediction formula. Requires average ratings of users as a dict
     :param user: Testing user
     :param business: Testing business
     :return: Predicted rating
     """
-    K = 3  # Number of nearest neighbours to use
-    sim_user = model_dict[user]  # Get all similar businesses from model of business of interest
-    business_reviews = reviews_dict[business]  # Get reviews of user of interest
-    neighbours = set(sim_user.keys()).intersection(set(business_reviews.keys()))  # Get similar businesses which is rated by that user of interest
+    K = 7  # Number of nearest neighbours to use
+    sim_user = model_dict[user]  # Get all similar users from model of user of interest
+    business_reviews = reviews_dict[business]  # Get reviews of business of interest
+    neighbours = set(sim_user.keys()).intersection(set(business_reviews.keys()))  # Get similar users which is rated by that business of interest
 
-    # Get a list of ratings and weights sorted by weights
-    # eg [(0.692833855070933, 5.0), (0.6305538695530374, 5.0), (0.5706052915642571, 2.0), ...]
-    ratings_list = sorted([(sim_user[i], business_reviews[i]) for i in neighbours], key=lambda x: -x[0])
+    # Get a list of ratings and weights and user average rating sorted by weights
+    # eg [(0.692833855070933, 5.0, 4.67), (0.6305538695530374, 5.0, 2.5), (0.5706052915642571, 2.0, 3.3), ...]
+    ratings_list = sorted([(sim_user[i], business_reviews[i], user_avg[i]) for i in neighbours], key=lambda x: -x[0])
     ratings_sublist = ratings_list[0:K]
-    numerator = sum([x * y for x, y in ratings_sublist])
-    denominator = sum([x for x, y in ratings_sublist])
+    numerator = sum([x * (y - z) for x, y, z in ratings_sublist])
+    denominator = sum([abs(x) for x, y, z in ratings_sublist])
 
     # If no corated users at all, return average score of user. If user not in model, return the "UNK" default score
     if numerator == 0 or denominator == 0:
         return user_avg.get(user, user_avg.get("UNK"))
     else:
-        result = numerator / denominator
+        result = user_avg[user] + numerator / denominator
     return result
 
 
@@ -232,7 +232,7 @@ if __name__ == '__main__':
     business_avg_file = os.path.join(os.path.dirname(input_file), "business_avg.json")
     user_avg_file = os.path.join(os.path.dirname(input_file), "user_avg.json")
 
-    # ============================ Read train file and Initialize ==========================
+    # ============================ Read train file, average rating files and Initialize ==========================
     lines = sc.textFile(input_file).distinct()
     reviews, businesses_inv, users_inv, businesses_dict, users_dict = initialize()
     business_avg, user_avg = reading_average_files(business_avg_file, user_avg_file)
