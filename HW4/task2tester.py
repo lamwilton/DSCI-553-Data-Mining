@@ -2,6 +2,8 @@ from collections import defaultdict
 import networkx as nx
 import matplotlib.pyplot as plt
 import task2
+from pyspark import SparkContext, SparkConf
+
 
 pairs_short = [(1, 2), (1, 3), (2, 3), (2, 4), (4, 5), (4, 6), (4, 7), (5, 6), (6, 7)]
 graph_adj = defaultdict(list)
@@ -12,4 +14,21 @@ result = task2.bfs_tree(graph_adj, 5)
 result.girvan_newman()
 
 print(task2.betweenness_helper(graph_adj, 5))
-# task2.plot_graph(result.tree)
+
+
+conf = SparkConf()
+conf.set("spark.driver.memory", "4g")
+conf.set("spark.executor.memory", "4g")
+conf.set("spark.master", "local[*]")
+conf.set("spark.app.name", "task2")
+conf.set("spark.driver.maxResultSize", "4g")
+sc = SparkContext.getOrCreate(conf)
+sc.setLogLevel("WARN")
+nodes_rdd = sc.parallelize([1,2,3,4,5,6,7])
+betweeness = nodes_rdd.flatMap(lambda x: task2.betweenness_helper(graph_adj, x))
+sum_betweenness = betweeness.reduceByKey(lambda x, y: x + y)
+final_result = sum_betweenness.map(lambda x: ((x[0][0], x[0][1]), x[1] / 2)) \
+    .map(lambda x: (tuple(sorted([x[0][0], x[0][1]])), x[1])) \
+    .sortBy(lambda x: (-x[1], x[0][0])) \
+    .collect()
+print(final_result)

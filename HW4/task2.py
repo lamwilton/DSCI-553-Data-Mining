@@ -5,9 +5,6 @@ from itertools import combinations
 import os
 from collections import defaultdict, deque
 
-import networkx as nx
-import matplotlib.pyplot as plt
-
 
 def corated_helper(user_reviews_dict, a, b):
     """
@@ -182,19 +179,6 @@ def betweenness_helper(graph_adj, x):
     return result
 
 
-def plot_graph(graph):
-    """
-    Graph visualization (Remove when submit)
-    :param graph: Adj list
-    :return:
-    """
-    # plt.rcParams["figure.figsize"] = (40, 30)
-    nxgraph = nx.DiGraph(graph)
-    nx.draw_planar(nxgraph, with_labels=True)
-    plt.savefig("graphviz.png")
-    plt.show()
-
-
 if __name__ == '__main__':
 
     # ========================================== Initializing ==========================================
@@ -229,7 +213,10 @@ if __name__ == '__main__':
     nodes_rdd = sc.parallelize(users_dict.values())
     betweeness = nodes_rdd.flatMap(lambda x: betweenness_helper(graph_adj, x))
     sum_betweenness = betweeness.reduceByKey(lambda x, y: x + y)
-    final_result = sum_betweenness.map(lambda x: ((users_inv[x[0][0]], users_inv[x[0][1]]), x[1]))\
+
+    # Final result. Remember to divide betweenness by 2
+    # eg [((2, 4), 12.0), ((1, 2), 5.0), ((2, 3), 5.0), ((4, 5), 4.5), ((4, 7), 4.5), ((4, 6), 4.0), ((5, 6), 1.5), ((6, 7), 1.5), ((1, 3), 1.0)]
+    final_result = sum_betweenness.map(lambda x: ((users_inv[x[0][0]], users_inv[x[0][1]]), x[1] / 2))\
         .map(lambda x: (tuple(sorted([x[0][0], x[0][1]])), x[1]))\
         .sortBy(lambda x: (-x[1], x[0][0]))\
         .collect()
