@@ -69,45 +69,63 @@ def graph_construct():
     return candidate_users, candidate_pairs
 
 
+class Tree:
+    """
+    Class for BFS tree with required information
+    """
+    def __init__(self):
+        self.tree = defaultdict(dict)  # Adjacency dict, Use list for unweighted graph
+        self.level = defaultdict(int)  # Track what the level of the nodes are
+        self.paths = defaultdict(int)  # Number of shortest paths
+        self.parents = defaultdict(set)  # Keep track of parents of each node
+        self.credits = defaultdict(int)  # For storing credits of each node
+
+
 def bfs_tree(graph, start_node):
-    tree = defaultdict(dict)  # Use list for unweighted graph
-    level = defaultdict(int)  # Track what the level of the nodes are
-    visited = defaultdict(bool)  # Track if node is visited
+    """
+    Do the BFS tree
+    :param graph: Adj dict
+    :param start_node: Starting node
+    :return: Result as a new tree object
+    """
+    visited = defaultdict(int)  # Track if node is visited
     dist = defaultdict(lambda: sys.maxsize)  # Length of shortest paths
-    paths = defaultdict(int)  # Number of shortest paths
-    parents = defaultdict(set)  # Record parents of each node
+    result = Tree()
 
     queue = deque()
     queue.append(start_node)
-    level[start_node] = 0
-    visited[start_node] = True
+    result.level[start_node] = 0
+    visited[start_node] = 1
     dist[start_node] = 0
-    paths[start_node] = 1
+    result.paths[start_node] = 1
     while queue:  # While queue is not empty
         s = queue.popleft()
         for t in graph[s]:
             if not visited[t]:
                 queue.append(t)
-                tree[s][t] = 0  # Add edge to the tree with weight 0
-                level[t] = level[s] + 1
-                visited[t] = True
-                parents[t].add(s)  # Keep track of the parents
+                result.tree[s][t] = 0  # Add edge to the tree with weight 0
+                result.level[t] = result.level[s] + 1
+                visited[t] = 1
+                result.parents[t].add(s)  # Keep track of the parents
 
             else:
                 # If visited, add edge only if they are at lower levels
-                if level[t] > level[s]:
-                    tree[s][t] = 0
-                    parents[t].add(s)
+                if result.level[t] > result.level[s]:
+                    result.tree[s][t] = 0
+                    result.parents[t].add(s)
 
             # Keeping track of the number of shortest paths
             if dist[t] > dist[s] + 1:
                 dist[t] = dist[s] + 1
-                paths[t] = paths[s]
+                result.paths[t] = result.paths[s]
 
             # Add shortest paths if found new ones
             elif dist[t] == dist[s] + 1:
-                paths[t] += paths[s]
-    return tree, level, paths, parents
+                result.paths[t] += result.paths[s]
+
+    # Record the list of nodes, each node starts with 1 credit
+    result.credits = visited
+    return result
 
 
 def convert_short():
