@@ -1,13 +1,10 @@
 from pyspark import SparkContext, SparkConf
 import sys
 import time
-import json
-from collections import defaultdict
 from itertools import combinations
 import os
 from graphframes import *
 from pyspark.sql import SparkSession, Row
-from pyspark.sql import Row
 
 
 def corated_helper(user_reviews_dict, a, b):
@@ -25,6 +22,9 @@ def corated_helper(user_reviews_dict, a, b):
 
 def graph_construct():
     """
+    Constructing graph from candidate pairs as usual
+    Do not use dictionaries here. It give different results
+
     Reviews count = 38648
     Business count (before filtering) = 9947
     Users count (before filtering) = 3374
@@ -38,18 +38,6 @@ def graph_construct():
         .filter(lambda line: line != header) \
         .map(lambda x: (str(x.split(",")[0]), str(x.split(",")[1]))) \
         .persist()
-
-    # Get lists of unique businesses and users as inverse dictionary from integer code to ID
-    businesses_inv = tuple(reviews_long.map(lambda x: x[1]).distinct().collect())
-    users_inv = tuple(reviews_long.map(lambda x: x[0]).distinct().collect())
-
-    # Make dictionaries to convert long IDs to integer code
-    businesses_dict = defaultdict(int)
-    for i in range(len(businesses_inv)):
-        businesses_dict[businesses_inv[i]] = i
-    users_dict = defaultdict(int)
-    for i in range(len(users_inv)):
-        users_dict[users_inv[i]] = i
 
     reviews = reviews_long.map(lambda x: (x[0], x[1]))\
         .persist()
@@ -76,7 +64,7 @@ def graph_construct():
     candidate_pairs_pre_2 = candidate_pairs_pre.map(lambda x:(x[1], x[0]))
     candidate_pairs = candidate_pairs_pre.union(candidate_pairs_pre_2).collect()
     candidate_users = candidate_pairs_pre.flatMap(lambda x: [x[0], x[1]]).distinct().collect()
-    return candidate_users, candidate_pairs, users_dict, users_inv
+    return candidate_users, candidate_pairs
 
 
 if __name__ == '__main__':
@@ -99,7 +87,7 @@ if __name__ == '__main__':
     community_output_file_path = sys.argv[3]
 
     # ========================================== Graph Construction ==========================================
-    candidate_users, candidate_pairs, users_dict, users_inv = graph_construct()
+    candidate_users, candidate_pairs = graph_construct()
     row = Row("id")
     vertices = sc.parallelize(candidate_users).map(row).toDF()
     edges = sc.parallelize(candidate_pairs).toDF(["src", "dst"])
