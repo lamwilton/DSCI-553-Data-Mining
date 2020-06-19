@@ -3,7 +3,7 @@ import sys
 import time
 from itertools import combinations
 import os
-from collections import defaultdict
+from collections import defaultdict, deque
 
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -69,13 +69,71 @@ def graph_construct():
     return candidate_users, candidate_pairs
 
 
+def bfs_tree(graph, start_node):
+    tree = defaultdict(dict)  # Use list for unweighted graph
+    level = defaultdict(int)  # Track what the level of the nodes are
+    visited = defaultdict(bool)  # Track if node is visited
+    dist = defaultdict(lambda: sys.maxsize)  # Length of shortest paths
+    paths = defaultdict(int)  # Number of shortest paths
+    parents = defaultdict(set)  # Record parents of each node
+
+    queue = deque()
+    queue.append(start_node)
+    level[start_node] = 0
+    visited[start_node] = True
+    dist[start_node] = 0
+    paths[start_node] = 1
+    while queue:  # While queue is not empty
+        s = queue.popleft()
+        for t in graph[s]:
+            if not visited[t]:
+                queue.append(t)
+                tree[s][t] = 0  # Add edge to the tree with weight 0
+                level[t] = level[s] + 1
+                visited[t] = True
+                parents[t].add(s)  # Keep track of the parents
+
+            else:
+                # If visited, add edge only if they are at lower levels
+                if level[t] > level[s]:
+                    tree[s][t] = 0
+                    parents[t].add(s)
+
+            # Keeping track of the number of shortest paths
+            if dist[t] > dist[s] + 1:
+                dist[t] = dist[s] + 1
+                paths[t] = paths[s]
+
+            # Add shortest paths if found new ones
+            elif dist[t] == dist[s] + 1:
+                paths[t] += paths[s]
+    return tree, level, paths, parents
+
+
 def convert_short():
+    """
+    Hash user ids pairs to integers
+    :return: dictionaries and hashed pairs
+    """
     users_inv = tuple(candidate_users)
     users_dict = defaultdict(int)
     for i in range(len(users_inv)):
         users_dict[users_inv[i]] = i
     pairs_short = list(map(lambda x: (users_dict[x[0]], users_dict[x[1]]), candidate_pairs))
     return users_dict, users_inv, pairs_short
+
+
+def plot_graph(graph):
+    """
+    Graph visualization (Remove when submit)
+    :param graph: Adj list
+    :return:
+    """
+    # plt.rcParams["figure.figsize"] = (40, 30)
+    nxgraph = nx.DiGraph(graph)
+    nx.draw(nxgraph, with_labels=True)
+    plt.savefig("graphviz.png")
+    plt.show()
 
 
 if __name__ == '__main__':
@@ -99,20 +157,13 @@ if __name__ == '__main__':
     candidate_users, candidate_pairs = graph_construct()
     users_dict, users_inv, pairs_short = convert_short()
 
+    # Convert to adjacency list
+    graph_adj = defaultdict(list)
+    for item in pairs_short:
+        graph_adj[item[0]].append(item[1])
+
     totaltime = time.time() - time1
     print("Duration Graph Construction: " + str(totaltime))
-
-
-    # Test plot graph
-    graph = defaultdict(list)
-    for item in pairs_short:
-        graph[item[0]].append(item[1])
-
-    plt.rcParams["figure.figsize"] = (50, 40)
-    nxgraph = nx.DiGraph(graph)
-    nx.draw(nxgraph, with_labels=True)
-    plt.savefig("what.png")
-    plt.show()
 
     totaltime = time.time() - time1
     print("Duration: " + str(totaltime))
