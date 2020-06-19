@@ -43,14 +43,12 @@ class Graph:
             # queue and print it
             s = queue.pop(0)
 
-            print(s, end=" ")
-
             # Get all adjacent vertices of the
             # dequeued vertex s. If a adjacent
             # has not been visited, then mark it
             # visited and enqueue it
             for i in self.graph[s]:
-                if visited[i] == False:
+                if not visited[i]:
                     queue.append(i)
                     tree[s][i] = 0
                     levels[i] = levels[s] + 1
@@ -77,10 +75,15 @@ g.addEdge(4, 7)
 g.addEdge(5, 6)
 g.addEdge(6, 7)
 
-print("Following is Breadth First Traversal"
-      " (starting from vertex 2)")
-tree5, levels5 = g.BFS(5)
-nxgraph = nx.Graph(tree5)
-nx.draw(nxgraph, with_labels=True)
+
+tree5, levels5 = g.BFS(3)
+# https://stackoverflow.com/questions/52763876/create-a-weighted-networkx-digraph-from-python-dict-of-dicts-descripton
+for k, d in tree5.items():
+    for ik in d:
+        #d[ik] = {'weight': 6}
+        pass
+nxgraph = nx.DiGraph(tree5)
+nx.draw_planar(nxgraph, with_labels=True)
+# nx.draw_networkx_edge_labels(nxgraph, pos=nx.spring_layout(nxgraph))
 plt.show()
 print()
