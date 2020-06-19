@@ -29,7 +29,7 @@ def graph_construct():
     Business count (before filtering) = 9947
     Users count (before filtering) = 3374
     Users count (after filtering, vertices) = 222
-    Edges count = 498
+    Edges count = 498 (x2 for reverse)
     :return: Users (Vertices) and Candidate pairs (Edges)
     """
     lines = sc.textFile(input_file_path).distinct()
@@ -48,7 +48,7 @@ def graph_construct():
     baskets = baskets_pre.map(lambda x: (x[0], set(x[1].data))) \
         .filter(lambda x: len(x[1]) >= filter_threshold)  # filter qualified users more than or equal 7
 
-    # Output users as a dictionary, index = user number
+    # Output users as a dictionary, index = user
     # eg {1: {513, 515, 4, 517, 519, 2055...}, {2: {6160, 3104, 556, ...}, ...}
     user_reviews_dict = baskets.sortByKey().collectAsMap()
 
@@ -101,14 +101,15 @@ if __name__ == '__main__':
     # eg (id, label) = (26, 1), (29, 0), ...
     result = graph.labelPropagation(maxIter=5)
 
-    # Convert dataframe back to RDD, map with label as key and group by key. Also translate back to long userids
+    # Convert dataframe back to RDD, map with label as key and group by key.
     # Have to coalesce or else it gets stuck
     pre_result = result.rdd.coalesce(2)\
         .map(lambda x: (x[1], x[0]))\
         .groupByKey()
 
     # Drop keys and Sort lexigraphical order
-    final_result = pre_result.map(lambda x: sorted(x[1].data))\
+    final_result = pre_result.values()\
+        .map(lambda x: sorted(x.data))\
         .sortBy(lambda x: (len(x), x[0]))\
         .collect()
 
