@@ -72,13 +72,35 @@ def graph_construct():
 class Tree:
     """
     Class for BFS tree with required information
+    Number of nodes in main tree: 190
     """
     def __init__(self):
-        self.tree = defaultdict(dict)  # Adjacency dict, Use list for unweighted graph
-        self.level = defaultdict(int)  # Track what the level of the nodes are
-        self.paths = defaultdict(int)  # Number of shortest paths
-        self.parents = defaultdict(set)  # Keep track of parents of each node
-        self.credits = defaultdict(int)  # For storing credits of each node
+        self.tree = defaultdict(dict)  # Adjacency dict, Use list for unweighted graph, {5: {4: 0, 6: 0}, 4: {2: 0, 7: 0}, 6: {7: 0}, 2: {1: 0, 3: 0}})
+        self.level = defaultdict(int)  # Track what the level of the nodes are, {5: 0, 4: 1, 6: 1, 2: 2, 7: 2, 1: 3, 3: 3})
+        self.levelset = defaultdict(set)  # Save set of nodes according to levels (inverse levels), {0: {5}, 1: {4, 6}, 2: {2, 7}, 3: {1, 3}})
+        self.paths = defaultdict(int)  # Number of shortest paths, {5: 1, 4: 1, 6: 1, 2: 1, 7: 2, 1: 1, 3: 1})
+        self.parents = defaultdict(set)  # Keep track of parents of each node, {4: {5}, 6: {5}, 2: {4}, 7: {4, 6}, 1: {2}, 3: {2}})
+        self.credits = defaultdict(float)  # For storing credits of each node, {5: 1, 4: 1, 6: 1, 2: 1, 7: 1, 1: 1, 3: 1})
+
+    def girvan_newman(self):
+        """
+        Girvan newman
+        eg defaultdict(<class 'dict'>, {5: {4: 4.5, 6: 1.5}, 4: {2: 3.0, 7: 0.5}, 6: {7: 0.5}, 2: {1: 1.0, 3: 1.0}})
+        :return:
+        """
+        for i_level in reversed(range(1, len(self.levelset))):
+            for node in self.levelset[i_level]:
+                # Add children edges credits
+                if node in self.tree:
+                    for edge in self.tree[node]:
+                        self.credits[node] += self.tree[node][edge]
+                # Distribute credits to parents
+                for parent in self.parents[node]:
+                    if self.paths[node] == 0:
+                        self.tree[parent][node] = 0
+                    else:
+                        self.tree[parent][node] = self.credits[node] * self.paths[parent] / self.paths[node]
+        return
 
 
 def bfs_tree(graph, start_node):
@@ -88,14 +110,15 @@ def bfs_tree(graph, start_node):
     :param start_node: Starting node
     :return: Result as a new tree object
     """
-    visited = defaultdict(int)  # Track if node is visited
+    visited = defaultdict(float)  # Track if node is visited
     dist = defaultdict(lambda: sys.maxsize)  # Length of shortest paths
     result = Tree()
 
     queue = deque()
     queue.append(start_node)
     result.level[start_node] = 0
-    visited[start_node] = 1
+    result.levelset[0].add(start_node)
+    visited[start_node] = 1.0
     dist[start_node] = 0
     result.paths[start_node] = 1
     while queue:  # While queue is not empty
@@ -105,7 +128,8 @@ def bfs_tree(graph, start_node):
                 queue.append(t)
                 result.tree[s][t] = 0  # Add edge to the tree with weight 0
                 result.level[t] = result.level[s] + 1
-                visited[t] = 1
+                result.levelset[result.level[t]].add(t)
+                visited[t] = 1.0
                 result.parents[t].add(s)  # Keep track of the parents
 
             else:
@@ -149,7 +173,7 @@ def plot_graph(graph):
     """
     # plt.rcParams["figure.figsize"] = (40, 30)
     nxgraph = nx.DiGraph(graph)
-    nx.draw(nxgraph, with_labels=True)
+    nx.draw_planar(nxgraph, with_labels=True)
     plt.savefig("graphviz.png")
     plt.show()
 
@@ -182,6 +206,9 @@ if __name__ == '__main__':
 
     totaltime = time.time() - time1
     print("Duration Graph Construction: " + str(totaltime))
+
+    # ========================================== BFS ==========================================
+    result = bfs_tree(graph_adj, 5)
 
     totaltime = time.time() - time1
     print("Duration: " + str(totaltime))
