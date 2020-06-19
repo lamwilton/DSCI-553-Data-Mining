@@ -51,7 +51,7 @@ def graph_construct():
     for i in range(len(users_inv)):
         users_dict[users_inv[i]] = i
 
-    reviews = reviews_long.map(lambda x: (users_dict[x[0]], businesses_dict[x[1]]))\
+    reviews = reviews_long.map(lambda x: (x[0], x[1]))\
         .persist()
     reviews_long.unpersist()
 
@@ -116,7 +116,7 @@ if __name__ == '__main__':
     # Convert dataframe back to RDD, map with label as key and group by key. Also translate back to long userids
     # Have to coalesce or else it gets stuck
     pre_result = result.rdd.coalesce(2)\
-        .map(lambda x: (users_inv[x[1]], users_inv[x[0]]))\
+        .map(lambda x: (x[1], x[0]))\
         .groupByKey()
 
     # Drop keys and Sort lexigraphical order
