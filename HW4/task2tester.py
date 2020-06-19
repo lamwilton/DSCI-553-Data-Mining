@@ -10,4 +10,6 @@ for item in pairs_short:
     graph_adj[item[1]].append(item[0])  # Rev edges.
 result = task2.bfs_tree(graph_adj, 5)
 result.girvan_newman()
-task2.plot_graph(result.tree)
+
+print(task2.betweenness_helper(graph_adj, 5))
+# task2.plot_graph(result.tree)

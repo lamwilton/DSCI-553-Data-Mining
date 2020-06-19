@@ -69,6 +69,19 @@ def graph_construct():
     return candidate_users, candidate_pairs
 
 
+def convert_short():
+    """
+    Hash user ids pairs to integers
+    :return: dictionaries and hashed pairs
+    """
+    users_inv = tuple(candidate_users)
+    users_dict = defaultdict(int)
+    for i in range(len(users_inv)):
+        users_dict[users_inv[i]] = i
+    pairs_short = list(map(lambda x: (users_dict[x[0]], users_dict[x[1]]), candidate_pairs))
+    return users_dict, users_inv, pairs_short
+
+
 class Tree:
     """
     Class for BFS tree with required information
@@ -152,17 +165,21 @@ def bfs_tree(graph, start_node):
     return result
 
 
-def convert_short():
+def betweenness_helper(graph_adj, x):
     """
-    Hash user ids pairs to integers
-    :return: dictionaries and hashed pairs
+    Helper to parallelize girvan newman
+    :param graph_adj: Adj dict of graph
+    :param x: starting node
+    :return: edges and weights as tuples
+    eg [((4, 5), 4.5), ((5, 6), 1.5), ((2, 4), 3.0), ((4, 7), 0.5), ((6, 7), 0.5), ((1, 2), 1.0), ((2, 3), 1.0)]
     """
-    users_inv = tuple(candidate_users)
-    users_dict = defaultdict(int)
-    for i in range(len(users_inv)):
-        users_dict[users_inv[i]] = i
-    pairs_short = list(map(lambda x: (users_dict[x[0]], users_dict[x[1]]), candidate_pairs))
-    return users_dict, users_inv, pairs_short
+    tree_obj = bfs_tree(graph_adj, x)
+    tree_obj.girvan_newman()
+    result = []
+    for x, subdict in tree_obj.tree.items():
+        for y, weight in subdict.items():
+            result.append((tuple(sorted([x, y])), weight))
+    return result
 
 
 def plot_graph(graph):
@@ -193,7 +210,8 @@ if __name__ == '__main__':
     sc.setLogLevel("WARN")
     filter_threshold = int(sys.argv[1])
     input_file_path = sys.argv[2]
-    community_output_file_path = sys.argv[3]
+    betweenness_output_file_path = sys.argv[3]
+    community_output_file_path = sys.argv[4]
 
     # ========================================== Graph Construction ==========================================
     candidate_users, candidate_pairs = graph_construct()
@@ -208,7 +226,20 @@ if __name__ == '__main__':
     print("Duration Graph Construction: " + str(totaltime))
 
     # ========================================== BFS ==========================================
-    result = bfs_tree(graph_adj, 5)
+    nodes_rdd = sc.parallelize(users_dict.values())
+    betweeness = nodes_rdd.flatMap(lambda x: betweenness_helper(graph_adj, x))
+    sum_betweenness = betweeness.reduceByKey(lambda x, y: x + y)
+    final_result = sum_betweenness.map(lambda x: ((users_inv[x[0][0]], users_inv[x[0][1]]), x[1]))\
+        .map(lambda x: (tuple(sorted([x[0][0], x[0][1]])), x[1]))\
+        .sortBy(lambda x: (-x[1], x[0][0]))\
+        .collect()
+
+    # ======================================= Write results =======================================
+    with open(betweenness_output_file_path, "w") as file:
+        for item in final_result:
+            line = str(item)[1:-1]
+            file.write(line)
+            file.write("\n")
 
     totaltime = time.time() - time1
     print("Duration: " + str(totaltime))
