@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import task2
 from pyspark import SparkContext, SparkConf
 
+print("Testing task 2.1 helper ====================================")
 
 pairs_short = [(1, 2), (1, 3), (2, 3), (2, 4), (4, 5), (4, 6), (4, 7), (5, 6), (6, 7)]
 graph_adj = defaultdict(list)
@@ -16,6 +17,12 @@ result.girvan_newman()
 print(task2.betweenness_helper(graph_adj, 5))
 
 
+print("Testing task 2.2 modularity ====================================")
+print(task2.modularity(graph_adj, [{1,2,3,4,5,6,7}], 7))
+print(task2.modularity(graph_adj, [{1,2,3},{4,5,6,7}], 7))
+print(task2.modularity(graph_adj, [{1,3},{2},{4,5,6,7}], 7))
+
+print("Testing task 2.1 betweenness ====================================")
 conf = SparkConf()
 conf.set("spark.driver.memory", "4g")
 conf.set("spark.executor.memory", "4g")
@@ -24,6 +31,7 @@ conf.set("spark.app.name", "task2")
 conf.set("spark.driver.maxResultSize", "4g")
 sc = SparkContext.getOrCreate(conf)
 sc.setLogLevel("WARN")
+
 nodes_rdd = sc.parallelize([1,2,3,4,5,6,7])
 betweeness = nodes_rdd.flatMap(lambda x: task2.betweenness_helper(graph_adj, x))
 sum_betweenness = betweeness.reduceByKey(lambda x, y: x + y)

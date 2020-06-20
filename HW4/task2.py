@@ -2,7 +2,6 @@ from pyspark import SparkContext, SparkConf
 import sys
 import time
 from itertools import combinations
-import os
 from collections import defaultdict, deque
 
 
@@ -38,7 +37,7 @@ def graph_construct():
         .map(lambda x: (str(x.split(",")[0]), str(x.split(",")[1]))) \
         .persist()
 
-    reviews = reviews_long.map(lambda x: (x[0], x[1]))\
+    reviews = reviews_long.map(lambda x: (x[0], x[1])) \
         .persist()
     reviews_long.unpersist()
 
@@ -52,8 +51,8 @@ def graph_construct():
     user_reviews_dict = baskets.sortByKey().collectAsMap()
 
     # Generate all pairs of users, dont know why the hell cartesian method aint work here
-    users = baskets.map(lambda x: x[0])\
-        .sortBy(lambda x: x)\
+    users = baskets.map(lambda x: x[0]) \
+        .sortBy(lambda x: x) \
         .collect()
     all_pairs = sc.parallelize(list(combinations(users, 2)))
 
@@ -84,13 +83,19 @@ class Tree:
     Class for BFS tree with required information
     Number of nodes in main tree: 190
     """
+
     def __init__(self):
-        self.tree = defaultdict(dict)  # Adjacency dict, Use list for unweighted graph, {5: {4: 0, 6: 0}, 4: {2: 0, 7: 0}, 6: {7: 0}, 2: {1: 0, 3: 0}})
-        self.level = defaultdict(int)  # Track what the level of the nodes are, {5: 0, 4: 1, 6: 1, 2: 2, 7: 2, 1: 3, 3: 3})
-        self.levelset = defaultdict(set)  # Save set of nodes according to levels (inverse levels), {0: {5}, 1: {4, 6}, 2: {2, 7}, 3: {1, 3}})
+        self.tree = defaultdict(
+            dict)  # Adjacency dict, Use list for unweighted graph, {5: {4: 0, 6: 0}, 4: {2: 0, 7: 0}, 6: {7: 0}, 2: {1: 0, 3: 0}})
+        self.level = defaultdict(
+            int)  # Track what the level of the nodes are, {5: 0, 4: 1, 6: 1, 2: 2, 7: 2, 1: 3, 3: 3})
+        self.levelset = defaultdict(
+            set)  # Save set of nodes according to levels (inverse levels), {0: {5}, 1: {4, 6}, 2: {2, 7}, 3: {1, 3}})
         self.paths = defaultdict(int)  # Number of shortest paths, {5: 1, 4: 1, 6: 1, 2: 1, 7: 2, 1: 1, 3: 1})
-        self.parents = defaultdict(set)  # Keep track of parents of each node, {4: {5}, 6: {5}, 2: {4}, 7: {4, 6}, 1: {2}, 3: {2}})
-        self.credits = defaultdict(float)  # For storing credits of each node, {5: 1, 4: 1, 6: 1, 2: 1, 7: 1, 1: 1, 3: 1})
+        self.parents = defaultdict(
+            set)  # Keep track of parents of each node, {4: {5}, 6: {5}, 2: {4}, 7: {4, 6}, 1: {2}, 3: {2}})
+        self.credits = defaultdict(
+            float)  # For storing credits of each node, {5: 1, 4: 1, 6: 1, 2: 1, 7: 1, 1: 1, 3: 1})
 
     def girvan_newman(self):
         """
@@ -179,6 +184,48 @@ def betweenness_helper(graph_adj, x):
     return result
 
 
+# ========================================== Task 2.2 ==========================================
+def betweenness_helper_2(graph_adj, x):
+    """
+    Helper to parallelize girvan newman for task 2.2. Also return set of community members from credits
+    :param graph_adj: Adj dict of graph
+    :param x: starting node
+    :return: edges and weights as tuples, and set of community members
+    eg [((4, 5), 4.5), ((5, 6), 1.5), ((2, 4), 3.0), ((4, 7), 0.5), ((6, 7), 0.5), ((1, 2), 1.0), ((2, 3), 1.0)]
+    """
+    tree_obj = bfs_tree(graph_adj, x)
+    tree_obj.girvan_newman()
+    result = []
+    for x, subdict in tree_obj.tree.items():
+        for y, weight in subdict.items():
+            result.append((tuple(sorted([x, y])), weight))
+    return tuple([result, set(tree_obj.credits.keys())])
+
+
+def modularity(graph_adj, communities, m):
+    """
+    Modularity calculation
+    :param graph_adj: Adj dict
+    :param communities: List of communities as sets
+    :param m: number of edges in original (498)
+    :return: modularity as float
+    """
+    result = 0
+    if m == 0:
+        m = 1
+    for community in communities:
+        for i in community:
+            for j in community:
+                a_ij = 0
+                if j in graph_adj[i]:
+                    a_ij = 1
+                k_i = len(graph_adj[i])
+                k_j = len(graph_adj[j])
+                result += a_ij - k_i * k_j / (2 * m)
+    result = result / (2 * m)
+    return result
+
+
 if __name__ == '__main__':
 
     # ========================================== Initializing ==========================================
@@ -210,18 +257,19 @@ if __name__ == '__main__':
     print("Duration Graph Construction: " + str(totaltime))
 
     # ========================================== BFS ==========================================
+    # Parallelize the starting nodes and use the helper to calculate betweennesses
     nodes_rdd = sc.parallelize(users_dict.values())
     betweeness = nodes_rdd.flatMap(lambda x: betweenness_helper(graph_adj, x))
     sum_betweenness = betweeness.reduceByKey(lambda x, y: x + y)
 
-    # Final result. Remember to divide betweenness by 2
+    # Final result. Summing all the nodes. Remember to divide betweenness by 2
     # eg [((2, 4), 12.0), ((1, 2), 5.0), ((2, 3), 5.0), ((4, 5), 4.5), ((4, 7), 4.5), ((4, 6), 4.0), ((5, 6), 1.5), ((6, 7), 1.5), ((1, 3), 1.0)]
-    final_result = sum_betweenness.map(lambda x: ((users_inv[x[0][0]], users_inv[x[0][1]]), x[1] / 2))\
-        .map(lambda x: (tuple(sorted([x[0][0], x[0][1]])), x[1]))\
-        .sortBy(lambda x: (-x[1], x[0][0]))\
+    final_result = sum_betweenness.map(lambda x: ((users_inv[x[0][0]], users_inv[x[0][1]]), x[1] / 2)) \
+        .map(lambda x: (tuple(sorted([x[0][0], x[0][1]])), x[1])) \
+        .sortBy(lambda x: (-x[1], x[0][0])) \
         .collect()
 
-    # ======================================= Write results =======================================
+    # ======================================= Task 2.1 Write results =======================================
     with open(betweenness_output_file_path, "w") as file:
         for item in final_result:
             line = str(item)[1:-1]
@@ -229,4 +277,8 @@ if __name__ == '__main__':
             file.write("\n")
 
     totaltime = time.time() - time1
-    print("Duration: " + str(totaltime))
+    print("Duration Task 2.1: " + str(totaltime))
+
+    # ======================================= Task 2.2 start =======================================
+    totaltime = time.time() - time1
+    print("Duration Task 2.2: " + str(totaltime))
