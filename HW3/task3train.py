@@ -177,8 +177,8 @@ def hash_func_generate(num_func):
     eg [[983, 294], [1777, 208], [557, 236], ...]
     """
     result = []
-    primes = random.sample(range(1000, sys.maxsize), num_func)
-    b = random.sample(range(1000, sys.maxsize), num_func)
+    primes = random.sample(range(10000000, sys.maxsize), num_func)
+    b = random.sample(range(10000000, sys.maxsize), num_func)
     for i in range(0, num_func):
         result.append([primes[i], b[i]])
     return result
