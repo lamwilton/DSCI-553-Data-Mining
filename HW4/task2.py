@@ -3,6 +3,7 @@ import sys
 import time
 from itertools import combinations
 from collections import defaultdict, deque
+import copy
 
 
 def corated_helper(user_reviews_dict, a, b):
@@ -197,10 +198,11 @@ def betweenness_helper_2(graph_adj, x):
     return tuple([result, set(tree_obj.credits.keys())])
 
 
-def modularity_calc(graph_adj, communities, m):
+def modularity_calc(graph_adj_orig, graph_adj, communities, m):
     """
     Modularity calculation
-    :param graph_adj: Adj dict
+    :param graph_adj_orig: Original Adj dict
+    :param graph_adj: Current Adj dict
     :param communities: List of communities as sets
     :param m: number of edges in original (498)
     :return: modularity as float
@@ -212,7 +214,7 @@ def modularity_calc(graph_adj, communities, m):
         for i in community:
             for j in community:
                 a_ij = 0
-                if j in graph_adj[i]:
+                if j in graph_adj_orig[i]:
                     a_ij = 1
                 k_i = len(graph_adj[i])
                 k_j = len(graph_adj[j])
@@ -227,11 +229,12 @@ def find_communities(graph_adj):
     :param graph_adj: Adj dict
     :return: best communities
     """
-    MAX_ITER = 40
+    MAX_ITER = 60
     TIME_LIMIT = 200
     num_iter = 0
     communities_list = []
     modularity_list = []
+    graph_adj_orig = copy.deepcopy(graph_adj)
     while num_iter < MAX_ITER:
         # Recompute betweenness together with the communities
         between_comm = nodes_rdd.map(lambda x: betweenness_helper_2(graph_adj, x)).persist()
@@ -250,7 +253,7 @@ def find_communities(graph_adj):
 
         communities = between_comm.map(lambda x: frozenset(x[1])).distinct().collect()
         communities_list.append(communities)
-        modularity = modularity_calc(graph_adj, communities, m=len(pairs_short))
+        modularity = modularity_calc(graph_adj_orig, graph_adj, communities, m=len(pairs_short))
         modularity_list.append(modularity)
         print("Num iter:" + str(num_iter) + " Modularity: " + str(modularity))
 
