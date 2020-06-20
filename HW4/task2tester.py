@@ -18,11 +18,10 @@ print(task2.betweenness_helper(graph_adj, 5))
 
 
 print("Testing task 2.2 modularity ====================================")
-print(task2.modularity(graph_adj, [{1,2,3,4,5,6,7}], 7))
-print(task2.modularity(graph_adj, [{1,2,3},{4,5,6,7}], 7))
-print(task2.modularity(graph_adj, [{1,3},{2},{4,5,6,7}], 7))
+print(task2.modularity_calc(graph_adj, [{1,2,3,4,5,6,7}], 9))
+print(task2.modularity_calc(graph_adj, [{1,2,3},{4,5,6,7}], 9))
+print(task2.modularity_calc(graph_adj, [{1,3},{2},{4,5,6,7}], 9))
 
-print("Testing task 2.1 betweenness ====================================")
 conf = SparkConf()
 conf.set("spark.driver.memory", "4g")
 conf.set("spark.executor.memory", "4g")
@@ -32,6 +31,7 @@ conf.set("spark.driver.maxResultSize", "4g")
 sc = SparkContext.getOrCreate(conf)
 sc.setLogLevel("WARN")
 
+print("Testing task 2.1 betweenness ====================================")
 nodes_rdd = sc.parallelize([1,2,3,4,5,6,7])
 betweeness = nodes_rdd.flatMap(lambda x: task2.betweenness_helper(graph_adj, x))
 sum_betweenness = betweeness.reduceByKey(lambda x, y: x + y)

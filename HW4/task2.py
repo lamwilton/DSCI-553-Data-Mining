@@ -85,17 +85,12 @@ class Tree:
     """
 
     def __init__(self):
-        self.tree = defaultdict(
-            dict)  # Adjacency dict, Use list for unweighted graph, {5: {4: 0, 6: 0}, 4: {2: 0, 7: 0}, 6: {7: 0}, 2: {1: 0, 3: 0}})
-        self.level = defaultdict(
-            int)  # Track what the level of the nodes are, {5: 0, 4: 1, 6: 1, 2: 2, 7: 2, 1: 3, 3: 3})
-        self.levelset = defaultdict(
-            set)  # Save set of nodes according to levels (inverse levels), {0: {5}, 1: {4, 6}, 2: {2, 7}, 3: {1, 3}})
+        self.tree = defaultdict(dict)  # Adjacency dict, Use list for unweighted graph, {5: {4: 0, 6: 0}, 4: {2: 0, 7: 0}, 6: {7: 0}, 2: {1: 0, 3: 0}})
+        self.level = defaultdict(int)  # Track what the level of the nodes are, {5: 0, 4: 1, 6: 1, 2: 2, 7: 2, 1: 3, 3: 3})
+        self.levelset = defaultdict(set)  # Save set of nodes according to levels (inverse levels), {0: {5}, 1: {4, 6}, 2: {2, 7}, 3: {1, 3}})
         self.paths = defaultdict(int)  # Number of shortest paths, {5: 1, 4: 1, 6: 1, 2: 1, 7: 2, 1: 1, 3: 1})
-        self.parents = defaultdict(
-            set)  # Keep track of parents of each node, {4: {5}, 6: {5}, 2: {4}, 7: {4, 6}, 1: {2}, 3: {2}})
-        self.credits = defaultdict(
-            float)  # For storing credits of each node, {5: 1, 4: 1, 6: 1, 2: 1, 7: 1, 1: 1, 3: 1})
+        self.parents = defaultdict(set)  # Keep track of parents of each node, {4: {5}, 6: {5}, 2: {4}, 7: {4, 6}, 1: {2}, 3: {2}})
+        self.credits = defaultdict(float)  # For storing credits of each node, {5: 1, 4: 1, 6: 1, 2: 1, 7: 1, 1: 1, 3: 1})
 
     def girvan_newman(self):
         """
@@ -202,7 +197,7 @@ def betweenness_helper_2(graph_adj, x):
     return tuple([result, set(tree_obj.credits.keys())])
 
 
-def modularity(graph_adj, communities, m):
+def modularity_calc(graph_adj, communities, m):
     """
     Modularity calculation
     :param graph_adj: Adj dict
@@ -223,6 +218,54 @@ def modularity(graph_adj, communities, m):
                 k_j = len(graph_adj[j])
                 result += a_ij - k_i * k_j / (2 * m)
     result = result / (2 * m)
+    return result
+
+
+def find_communities(graph_adj):
+    """
+    Task 2.2
+    :param graph_adj: Adj dict
+    :return: best communities
+    """
+    MAX_ITER = 40
+    TIME_LIMIT = 200
+    num_iter = 0
+    communities_list = []
+    modularity_list = []
+    while num_iter < MAX_ITER:
+        # Recompute betweenness together with the communities
+        between_comm = nodes_rdd.map(lambda x: betweenness_helper_2(graph_adj, x)).persist()
+        betweeness = between_comm.flatMap(lambda x: x[0])
+        sum_betweenness = betweeness.reduceByKey(lambda x, y: x + y)
+
+        # If no edges left, or almost out of time, break loop
+        if sum_betweenness.isEmpty() or time.time() - time1 > TIME_LIMIT:
+            break
+
+        # Find which edges has max betweenness, so they can be removed
+        max_betweenness = sum_betweenness.sortBy(lambda x: -x[1]).first()[1]
+        edges_removing = sum_betweenness.filter(lambda x: x[1] == max_betweenness)\
+            .keys()\
+            .collect()
+
+        communities = between_comm.map(lambda x: frozenset(x[1])).distinct().collect()
+        communities_list.append(communities)
+        modularity = modularity_calc(graph_adj, communities, m=len(pairs_short))
+        modularity_list.append(modularity)
+        print("Num iter:" + str(num_iter) + " Modularity: " + str(modularity))
+
+        num_iter += 1
+
+        # Remove the edges with highest betweenness. Do nothing if not found
+        for edge in edges_removing:
+            try:
+                graph_adj[edge[0]].remove(edge[1])
+                graph_adj[edge[1]].remove(edge[0])
+            except ValueError:
+                pass
+    # Output best communities
+    best_iter = modularity_list.index(max(modularity_list))
+    result = communities_list[best_iter]
     return result
 
 
@@ -279,6 +322,21 @@ if __name__ == '__main__':
     totaltime = time.time() - time1
     print("Duration Task 2.1: " + str(totaltime))
 
-    # ======================================= Task 2.2 start =======================================
+    # ======================================= Task 2.2  =======================================
+    result = find_communities(graph_adj)
+    # Sort lexigraphical order
+    final_result = sc.parallelize(result)\
+        .map(lambda x: list(map(lambda y: users_inv[y], x)))\
+        .map(lambda x: sorted(x))\
+        .sortBy(lambda x: (len(x), x[0]))\
+        .collect()
+
+    # ======================================= Task 2.2 Write results =======================================
+    with open(community_output_file_path, "w") as file:
+        for item in final_result:
+            line = str(item).strip("[]")
+            file.write(line)
+            file.write("\n")
+
     totaltime = time.time() - time1
     print("Duration Task 2.2: " + str(totaltime))
