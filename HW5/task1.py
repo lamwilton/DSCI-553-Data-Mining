@@ -97,7 +97,7 @@ def predicting():
     :return: result of all entries
     """
     result = []
-    with open(second_json_path, "r") as file:
+    with open(second_json_path, "r", encoding="utf-8") as file:
         for line in file:
             city = json.loads(line)['city']
             city_int = convert_str(city)
