@@ -31,10 +31,12 @@ def hash_func_generate(num_func):
     return result
 
 
-def hashing(city_int):
+def hashing(city_int, ab_pairs, m):
     """
     Hashing the city as integer
-    :param city_int:
+    :param city_int: City as integer
+    :param ab_pairs: Hash functions parameters
+    :param m: Number of buckets
     :return: List of result hashes
     """
     result = []
@@ -47,8 +49,8 @@ def hashing(city_int):
 
 def training():
     """
-    Number of unique cities = 860
-    :return: Filter bit array
+    Number of unique cities = 861
+    :return: Filter bit array, hash func parameter pairs, and cities count
     """
     lines = sc.textFile(first_json_path)
     cities = lines.filter(lambda line: len(line) != 0) \
@@ -58,7 +60,14 @@ def training():
         .distinct()\
         .map(convert_str) \
         .persist()
-    hash_result = cities.flatMap(lambda x: hashing(x))\
+
+    # Estimate number of bits (m), n = number of unique cities, Set m/n = 10, so k = 7
+    cities_count = cities.count()
+    m = cities_count * 10
+    num_hash = 7
+
+    ab_pairs = hash_func_generate(num_func=num_hash)
+    hash_result = cities.flatMap(lambda x: hashing(x, ab_pairs, m))\
         .distinct()\
         .collect()
     bit_array = []
@@ -67,10 +76,15 @@ def training():
             bit_array.append(1)
         else:
             bit_array.append(0)
-    return bit_array
+    return bit_array, ab_pairs, m
 
 
 def check_hash(hashes):
+    """
+    Check the filter if item is present
+    :param hashes: hash of the item
+    :return: 1 if found
+    """
     for i in hashes:
         if bit_array[i] == 0:
             return 0
@@ -78,12 +92,16 @@ def check_hash(hashes):
 
 
 def predicting():
+    """
+    Predicting phase
+    :return: result of all entries
+    """
     result = []
     with open(second_json_path, "r") as file:
         for line in file:
             city = json.loads(line)['city']
             city_int = convert_str(city)
-            hashes = hashing(city_int)
+            hashes = hashing(city_int, ab_pairs, m)
             result.append(check_hash(hashes))
     return result
 
@@ -104,14 +122,13 @@ if __name__ == '__main__':
     first_json_path = sys.argv[1]
     second_json_path = sys.argv[2]
     output_file_path = sys.argv[3]
-    m = 8000  # Number of buckets
 
     # ========================================== Main ==========================================
-    ab_pairs = hash_func_generate(num_func=6)
-    bit_array = training()
+    bit_array, ab_pairs, m = training()
 
     totaltime = time.time() - time1
     print("Duration training : " + str(totaltime))
+
     result = predicting()
 
     # ========================================== Write results ==========================================
