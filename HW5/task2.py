@@ -5,6 +5,7 @@ import time
 from datetime import datetime
 import json
 import binascii
+import functools
 
 
 def convert_str(s):
@@ -59,6 +60,9 @@ def rdd_helper(rdd):
     :param rdd:
     :return:
     """
+    """data = rdd.collect()
+    truth = len(set(data))
+    estimate = functools.reduce(lambda x, y: reduce_helper(x, y), data)"""
     truth = rdd.distinct().count()
     estimate = rdd.reduce(lambda x, y: reduce_helper(x, y))
     time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -87,6 +91,11 @@ if __name__ == '__main__':
     ssc = StreamingContext(sc, 5)
     port_num = int(sys.argv[1])
     output_file_name = sys.argv[2]
+
+    # Write header
+    with open(output_file_name, "a+") as file:
+        file.write("Time,Ground Truth,Estimation")
+        file.write("\n")
 
     # ========================================== Main ==========================================
     lines = ssc.socketTextStream("localhost", port_num)
