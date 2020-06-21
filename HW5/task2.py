@@ -7,15 +7,19 @@ import json
 import binascii
 
 
-def convert_str(s: str):
+def convert_str(s):
     """
-    Convert string to int
+    Convert string to int, also do the hashing
     :param s: String
     :return: Int
     """
+    p = 479001599
+    m = 1024  # 10 bits
     if s == "":
         return 2387462387782346
-    return int(binascii.hexlify(s.encode('utf8')), 16)
+    num = int(binascii.hexlify(s.encode('utf8')), 16)
+    hash_num = (982735982389 * num + 293879238759283) % p % m
+    return hash_num
 
 
 def count_zeros(num):
@@ -36,6 +40,12 @@ def count_zeros(num):
 
 
 def reduce_helper(x, y):
+    """
+    Find max length of trailing zeros for reduce
+    :param x:
+    :param y:
+    :return:
+    """
     x_zeros = count_zeros(x)
     y_zeros = count_zeros(y)
     max_zeros = max(x_zeros, y_zeros)
@@ -44,12 +54,22 @@ def reduce_helper(x, y):
 
 
 def rdd_helper(rdd):
+    """
+    Compute result for each rdd and write to file
+    :param rdd:
+    :return:
+    """
     truth = rdd.distinct().count()
     estimate = rdd.reduce(lambda x, y: reduce_helper(x, y))
     time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     result = time + "," + str(truth) + "," + str(estimate)
-    return result
+
+    with open(output_file_name, "a+") as file:
+        file.write(str(result))
+        file.write("\n")
+    return
+
 
 if __name__ == '__main__':
 
@@ -68,6 +88,7 @@ if __name__ == '__main__':
     port_num = int(sys.argv[1])
     output_file_name = sys.argv[2]
 
+    # ========================================== Main ==========================================
     lines = ssc.socketTextStream("localhost", port_num)
     cities_stream = lines.window(30, 10)\
         .filter(lambda line: len(line) != 0) \
@@ -75,7 +96,8 @@ if __name__ == '__main__':
         .map(lambda x: (x['city'])) \
         .filter(lambda x: x is not None)\
         .map(lambda x: convert_str(x))
-    result = cities_stream.foreachRDD(lambda rdd: print(rdd_helper(rdd)))
-    #result = cities_stream.reduce(lambda x, y: reduce_helper(x, y)).pprint()
+
+    cities_stream.foreachRDD(lambda rdd: rdd_helper(rdd))
+
     ssc.start()
     ssc.awaitTermination()
