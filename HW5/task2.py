@@ -89,12 +89,11 @@ def rdd_helper(rdd):
         .values()\
         .collect()
 
-    # Take average of middle group only as the final estimate
-    estimate_final = sum(sorted(estimate)[4:8]) / 4
-    print(sorted(estimate)[4:8])
+    # Take average of first group only as the final estimate, dont know why first group is more accurate
+    estimate_final = sum(sorted(estimate)[0:4]) // 4
     time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    result = time + "," + str(truth) + "," + str(estimate)
+    result = time + "," + str(truth) + "," + str(estimate_final)
     print(result)
     with open(output_file_name, "a+") as file:
         file.write(str(result))
