@@ -79,8 +79,6 @@ def rdd_helper(rdd):
     :param rdd: Inputing rdd of 12 hashes of each city
     :return:
     """
-    NUM_GROUPS = 7
-    GROUP_SIZE = NUM_HASH // NUM_GROUPS
     truth = rdd.distinct().count()
 
     # Estimate the number of unique elements using multiple hash functions
@@ -91,20 +89,17 @@ def rdd_helper(rdd):
         .values()\
         .collect()
 
-    # divide to 7 Groups and calculate averages
-    averages = []
-    for i in range(0, len(estimate), GROUP_SIZE):
-        averages.append(sum(estimate[i: i + GROUP_SIZE]) // GROUP_SIZE)
-    averages_sort = sorted(averages)
-    #estimate_final = averages_sort[NUM_GROUPS // 2]
-
+    # Take average of log2(estimate), then take power of 2
+    # Acceptable range is (0.5gt, 1.5gt)
     estimate_final = 2 ** (sum(list(map(lambda x: math.log2(x), estimate))) / len(estimate))
 
     time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     result = time + "," + str(truth) + "," + str(estimate_final)
-    print(estimate)
-    print(estimate_final / truth)
+
+    print("Estimates: " + str(estimate))
+    print("Ratio: " + str(estimate_final / truth))
     print(result)
+
     with open(output_file_name, "a+") as file:
         file.write(str(result))
         file.write("\n")
@@ -126,7 +121,7 @@ if __name__ == '__main__':
     ssc = StreamingContext(sc, 5)
     port_num = int(sys.argv[1])
     output_file_name = sys.argv[2]
-    NUM_HASH = 28  # Must be multiple of number of groups
+    NUM_HASH = 30
 
     # Write header for output file
     with open(output_file_name, "w") as file:
