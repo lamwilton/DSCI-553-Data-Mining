@@ -121,7 +121,7 @@ if __name__ == '__main__':
     ssc = StreamingContext(sc, 5)
     port_num = int(sys.argv[1])
     output_file_name = sys.argv[2]
-    NUM_HASH = 30
+    NUM_HASH = 40
 
     # Write header for output file
     with open(output_file_name, "w") as file:
