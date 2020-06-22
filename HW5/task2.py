@@ -6,6 +6,7 @@ from datetime import datetime
 import json
 import binascii
 import random
+import math
 
 
 def hash_func_generate(num_func):
@@ -34,7 +35,6 @@ def convert_str(s):
     if s == "":
         return 2387462387782346
     num = int(binascii.hexlify(s.encode('utf8')), 16)
-    ab_pairs = hash_func_generate(num_func=12)
     result = []
     for i in range(len(ab_pairs)):
         hash_result = ((ab_pairs[i][0] * num + ab_pairs[i][1]) % p) % m
@@ -79,6 +79,8 @@ def rdd_helper(rdd):
     :param rdd: Inputing rdd of 12 hashes of each city
     :return:
     """
+    NUM_GROUPS = 7
+    GROUP_SIZE = NUM_HASH // NUM_GROUPS
     truth = rdd.distinct().count()
 
     # Estimate the number of unique elements using multiple hash functions
@@ -89,11 +91,19 @@ def rdd_helper(rdd):
         .values()\
         .collect()
 
-    # Take average of first group only as the final estimate, dont know why first group is more accurate
-    estimate_final = sum(sorted(estimate)[0:4]) // 4
-    time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # divide to 7 Groups and calculate averages
+    averages = []
+    for i in range(0, len(estimate), GROUP_SIZE):
+        averages.append(sum(estimate[i: i + GROUP_SIZE]) // GROUP_SIZE)
+    averages_sort = sorted(averages)
+    #estimate_final = averages_sort[NUM_GROUPS // 2]
 
+    estimate_final = 2 ** (sum(list(map(lambda x: math.log2(x), estimate))) / len(estimate))
+
+    time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     result = time + "," + str(truth) + "," + str(estimate_final)
+    print(estimate)
+    print(estimate_final / truth)
     print(result)
     with open(output_file_name, "a+") as file:
         file.write(str(result))
@@ -102,7 +112,6 @@ def rdd_helper(rdd):
 
 
 if __name__ == '__main__':
-
     # ========================================== Initializing ==========================================
     time1 = time.time()
     conf = SparkConf()
@@ -117,6 +126,7 @@ if __name__ == '__main__':
     ssc = StreamingContext(sc, 5)
     port_num = int(sys.argv[1])
     output_file_name = sys.argv[2]
+    NUM_HASH = 28  # Must be multiple of number of groups
 
     # Write header for output file
     with open(output_file_name, "w") as file:
@@ -131,6 +141,8 @@ if __name__ == '__main__':
         .map(lambda x: (x['city'])) \
         .filter(lambda x: x is not None)
 
+    # Initialize hash functions
+    ab_pairs = hash_func_generate(num_func=NUM_HASH)
     cities_stream.foreachRDD(lambda rdd: rdd_helper(rdd))
 
     ssc.start()
