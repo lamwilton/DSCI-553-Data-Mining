@@ -229,20 +229,20 @@ def find_communities(graph_adj):
     :param graph_adj: Adj dict
     :return: best communities
     """
-    MAX_ITER = 60
+    MAX_ITER = 10000000  # Optional: Limit the number of iterations
     TIME_LIMIT = 200
     num_iter = 0
     communities_list = []
     modularity_list = []
     graph_adj_orig = copy.deepcopy(graph_adj)
-    while num_iter < MAX_ITER:
+    while num_iter < MAX_ITER and time.time() - time1 < TIME_LIMIT:
         # Recompute betweenness together with the communities
         between_comm = nodes_rdd.map(lambda x: betweenness_helper_2(graph_adj, x)).persist()
         betweeness = between_comm.flatMap(lambda x: x[0])
         sum_betweenness = betweeness.reduceByKey(lambda x, y: x + y)
 
         # If no edges left, or almost out of time, break loop
-        if sum_betweenness.isEmpty() or time.time() - time1 > TIME_LIMIT:
+        if sum_betweenness.isEmpty():
             break
 
         # Find which edges has max betweenness, so they can be removed
