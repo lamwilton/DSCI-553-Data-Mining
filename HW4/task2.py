@@ -198,11 +198,10 @@ def betweenness_helper_2(graph_adj, x):
     return tuple([result, set(tree_obj.credits.keys())])
 
 
-def modularity_calc(graph_adj_orig, graph_adj, communities, m):
+def modularity_calc(graph_adj_orig, communities, m):
     """
     Modularity calculation
     :param graph_adj_orig: Original Adj dict
-    :param graph_adj: Current Adj dict
     :param communities: List of communities as sets
     :param m: number of edges in original (498)
     :return: modularity as float
@@ -214,11 +213,11 @@ def modularity_calc(graph_adj_orig, graph_adj, communities, m):
         for i in community:
             for j in community:
                 a_ij = 0
-                if j in graph_adj_orig[i]:
+                if j in graph_adj_orig[i] or i in graph_adj_orig[j]:
                     a_ij = 1
-                k_i = len(graph_adj[i])
-                k_j = len(graph_adj[j])
-                result += a_ij - k_i * k_j / (2 * m)
+                k_i = len(graph_adj_orig[i])
+                k_j = len(graph_adj_orig[j])
+                result += (a_ij - (k_i * k_j / (2 * m)))
     result = result / (2 * m)
     return result
 
@@ -253,9 +252,9 @@ def find_communities(graph_adj):
 
         communities = between_comm.map(lambda x: frozenset(x[1])).distinct().collect()
         communities_list.append(communities)
-        modularity = modularity_calc(graph_adj_orig, graph_adj, communities, m=len(pairs_short))
+        modularity = modularity_calc(graph_adj_orig, communities, m=len(pairs_short) // 2)  # m should divided by 2 because m includes reverse edges
         modularity_list.append(modularity)
-        print("Num iter:" + str(num_iter) + " Modularity: " + str(modularity))
+        print("Num iter:" + str(num_iter) + " Modularity: " + str(modularity_list[num_iter]) + " Num communities: " + str(len(communities_list[num_iter])))
 
         num_iter += 1
 
@@ -269,6 +268,9 @@ def find_communities(graph_adj):
     # Output best communities
     best_iter = modularity_list.index(max(modularity_list))
     result = communities_list[best_iter]
+    print("Best results")
+    print("Num iter:" + str(best_iter) + " Modularity: " + str(modularity_list[best_iter]) + " Num communities: " + str(
+        len(communities_list[best_iter])))
     return result
 
 
