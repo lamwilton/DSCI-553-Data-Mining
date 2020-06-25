@@ -84,6 +84,6 @@ if __name__ == '__main__':
     open(output_file_name, "w")  # Create file if not exist
 
     # ========================================== Main ==========================================
-    myStream.filter(track=['trump'])
+    myStream.filter(track=['trump'], languages=["en"])
 
 
