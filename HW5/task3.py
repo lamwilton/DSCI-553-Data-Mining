@@ -1,11 +1,17 @@
 from collections import defaultdict
 import tweepy
 import random
+import sys
 
 
 class MyStreamListener(tweepy.StreamListener):
 
     def on_status(self, status):
+        """
+        Reading a tweet suscessfully
+        :param status:
+        :return:
+        """
         global tweet_counter, tweets
         MAX_TWEETS = 100
 
@@ -14,20 +20,28 @@ class MyStreamListener(tweepy.StreamListener):
         if len(tags) == 0:
             return
         tweet_counter += 1
-        print("The number of tweets with tags from the beginning: " + str(tweet_counter))
+        # print("The number of tweets with tags from the beginning: " + str(tweet_counter))
 
         # For first 100 tweets, directly save them
         if len(tweets) < MAX_TWEETS:
             tweets.append(tags)
         else:
             # Decide to keep the tweet or not
-            keep = random.randint(0, tweet_counter)
+            keep = random.randint(0, tweet_counter - 1)
             if keep <= MAX_TWEETS:  # 100/n probability of keeping the new tweet (n = tweet_counter)
-                replacing = random.randint(0, MAX_TWEETS)  # Pick a random one to replace
+                replacing = random.randint(0, MAX_TWEETS - 1)  # Pick a random one to replace
                 tweets[replacing] = tags
         freq = count_tags(tweets)
-        for i in range(0, min(len(freq), 3)):
-            print(str(freq[i][0]) + " : " + str(freq[i][1]))
+
+        # Write results
+        with open(output_file_name, "a+") as file:
+            file.write("The number of tweets with tags from the beginning: " + str(tweet_counter))
+            file.write("\n")
+            for i in range(0, min(len(freq), 3)):
+                file.write((freq[i][0]) + " : " + str(freq[i][1]))
+                file.write("\n")
+            file.write("\n")
+        return
 
     def on_error(self, status_code):
         if status_code == 420:
@@ -51,6 +65,8 @@ def count_tags(tweets):
 
 if __name__ == '__main__':
     # ========================================== Initializing API ==========================================
+    port_num = int(sys.argv[1])
+    output_file_name = sys.argv[2]
     consumer_token = "IsJLqWb6wKRjxv5I8Irv72ZWV"
     consumer_secret = "LzyxtNL6cTyGnRFobUEr9Q7cqlvqIPALf5oHHIDBaSCSTA7gH1"
     access_token = "2423408268-B3gyV3GtsfBYximwMdNZEiQeqVxD1DeCtkjZwxx"
@@ -65,8 +81,9 @@ if __name__ == '__main__':
 
     tweet_counter = 0
     tweets = []
+    open(output_file_name, "w")  # Create file if not exist
+
     # ========================================== Main ==========================================
     myStream.filter(track=['trump'])
 
-    print()
 
