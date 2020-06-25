@@ -12,26 +12,27 @@ class MyStreamListener(tweepy.StreamListener):
         :param status:
         :return:
         """
-        global tweet_counter, tweets
-        MAX_TWEETS = 100
+        global tweet_counter, tags_bin
+        MAX_TAGS = 100
 
         # Reading a tweet
-        tags = [i['text'] for i in status.entities['hashtags']]
-        if len(tags) == 0:
+        tweet_tags = [i['text'] for i in status.entities['hashtags']]
+        if len(tweet_tags) == 0:
             return
         tweet_counter += 1
         # print("The number of tweets with tags from the beginning: " + str(tweet_counter))
 
-        # For first 100 tweets, directly save them
-        if len(tweets) < MAX_TWEETS:
-            tweets.append(tags)
-        else:
-            # Decide to keep the tweet or not
-            keep = random.randint(0, tweet_counter - 1)
-            if keep <= MAX_TWEETS:  # 100/n probability of keeping the new tweet (n = tweet_counter)
-                replacing = random.randint(0, MAX_TWEETS - 1)  # Pick a random one to replace
-                tweets[replacing] = tags
-        freq = count_tags(tweets)
+        for tag in tweet_tags:
+            # For first 100 tags, directly save them
+            if len(tags_bin) < MAX_TAGS:
+                tags_bin.append(tag)
+            else:
+                # Decide to keep the tweet or not
+                keep = random.randint(0, tweet_counter - 1)
+                if keep <= MAX_TAGS:  # 100/n probability of keeping the new tweet (n = tweet_counter)
+                    replacing = random.randint(0, MAX_TAGS - 1)  # Pick a random one to replace
+                    tags_bin[replacing] = tag
+        freq = count_tags(tags_bin)
 
         # Write results
         with open(output_file_name, "a+") as file:
@@ -47,18 +48,21 @@ class MyStreamListener(tweepy.StreamListener):
         if status_code == 420:
             return False
 
+    def on_exception(self, exception):
+        print("Somethings wrong, ignoring it")
+        return
 
-def count_tags(tweets):
+
+def count_tags(tags_bin):
     """
     Count the frequencies of tags
-    :param tweets: List of tweets containing list of tags per tweet
+    :param tags_bin: Tags bin
     :return: Sorted freq list result_sort
     eg [('Trump', 2), ('AspiringDictator', 1), ('DemPartyOfMarxists', 1), ...]
     """
     result = defaultdict(int)
-    for tweet in tweets:
-        for tag in tweet:
-            result[tag] += 1
+    for tag in tags_bin:
+        result[tag] += 1
     result_sort = sorted(result.items(), key=lambda x: (-x[1], x[0]))
     return result_sort
 
@@ -80,7 +84,7 @@ if __name__ == '__main__':
     myStream = tweepy.Stream(auth=api.auth, listener=myStreamListener)
 
     tweet_counter = 0
-    tweets = []
+    tags_bin = []
     open(output_file_name, "w")  # Create file if not exist
 
     # ========================================== Main ==========================================
