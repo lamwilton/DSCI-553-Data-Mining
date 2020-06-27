@@ -229,7 +229,7 @@ def find_communities(graph_adj):
     :return: best communities
     """
     MAX_ITER = 10000000  # Optional: Limit the number of iterations
-    TIME_LIMIT = 200
+    TIME_LIMIT = 230
     num_iter = 0
     communities_list = []
     modularity_list = []
