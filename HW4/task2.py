@@ -231,9 +231,10 @@ def find_communities(graph_adj):
     MAX_ITER = 10000000  # Optional: Limit the number of iterations
     TIME_LIMIT = 230
     num_iter = 0
-    communities_list = []
-    modularity_list = []
     graph_adj_orig = copy.deepcopy(graph_adj)
+    modularity_best = 0
+    communities_best = []
+    best_iter = 0
     while num_iter < MAX_ITER and time.time() - time1 < TIME_LIMIT:
         # Recompute betweenness together with the communities
         between_comm = nodes_rdd.map(lambda x: betweenness_helper_2(graph_adj, x)).persist()
@@ -251,10 +252,12 @@ def find_communities(graph_adj):
             .collect()
 
         communities = between_comm.map(lambda x: frozenset(x[1])).distinct().collect()
-        communities_list.append(communities)
         modularity = modularity_calc(graph_adj_orig, communities, m=len(pairs_short) // 2)  # m should divided by 2 because m includes reverse edges
-        modularity_list.append(modularity)
-        print("Num iter:" + str(num_iter) + " Modularity: " + str(modularity_list[num_iter]) + " Num communities: " + str(len(communities_list[num_iter])))
+        if modularity > modularity_best:  # Keeping track of the best result
+            modularity_best = modularity
+            communities_best = communities
+            best_iter = num_iter
+        print("Num iter:" + str(num_iter) + " Modularity: " + str(modularity) + " Num communities: " + str(len(communities)))
 
         num_iter += 1
 
@@ -266,11 +269,10 @@ def find_communities(graph_adj):
             except ValueError:
                 pass
     # Output best communities
-    best_iter = modularity_list.index(max(modularity_list))
-    result = communities_list[best_iter]
+    result = communities_best
     print("Best results")
-    print("Num iter:" + str(best_iter) + " Modularity: " + str(modularity_list[best_iter]) + " Num communities: " + str(
-        len(communities_list[best_iter])))
+    print("Num iter:" + str(best_iter) + " Modularity: " + str(modularity_best) + " Num communities: " + str(
+        len(communities_best)))
     return result
 
 
