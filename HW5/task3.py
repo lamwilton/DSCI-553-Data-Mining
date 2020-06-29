@@ -15,8 +15,11 @@ class MyStreamListener(tweepy.StreamListener):
         global tweet_counter, tags_bin, tags_counter
         MAX_TAGS = 100
 
-        # Reading a tweet
-        tweet_tags = [i['text'] for i in status.entities['hashtags']]
+        # Reading a tweet. If tweet is long, get hashtags from extended_tweet dict
+        if status.truncated:
+            tweet_tags = [i['text'] for i in status.extended_tweet['entities']['hashtags']]
+        else:
+            tweet_tags = [i['text'] for i in status.entities['hashtags']]
         if len(tweet_tags) == 0:
             return  # Ignore tagless tweets
         tweet_counter += 1
