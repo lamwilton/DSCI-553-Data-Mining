@@ -1,4 +1,4 @@
-#DSCI-553-Data-Mining
+# DSCI-553-Data-Mining  
 Previously known as INF-553
 
 Programming assignments for this course using Spark, Python and Scala  
